@@ -1,5 +1,4 @@
-package com.example.restservice;
-import java.lang.Boolean;
+package com.generatepdf.restservice;
 
 public class Request {
 

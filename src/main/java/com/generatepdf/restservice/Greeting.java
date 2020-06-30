@@ -1,4 +1,4 @@
-package com.example.restservice;
+package com.generatepdf.restservice;
 
 public class Greeting {
 
