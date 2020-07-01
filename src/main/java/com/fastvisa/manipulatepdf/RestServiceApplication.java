@@ -1,4 +1,4 @@
-package com.generatepdf.restservice;
+package com.fastvisa.manipulatepdf;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

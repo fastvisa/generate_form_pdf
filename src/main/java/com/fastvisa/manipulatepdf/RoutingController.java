@@ -1,14 +1,11 @@
-package com.generatepdf.restservice;
+package com.fastvisa.manipulatepdf;
 
 import java.io.*;
 import java.util.Map;
 
 import com.google.gson.Gson;
-import java.util.concurrent.atomic.AtomicLong;
 
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -22,43 +19,19 @@ import com.itextpdf.forms.fields.PdfFormField;
 import com.itextpdf.forms.xfa.XfaForm;
 
 @RestController
-public class GreetingController {
+public class RoutingController {
 
-	private static final String template = "Hello, %s!";
-	private final AtomicLong counter = new AtomicLong();
-
-	@GetMapping("/greeting")
-	public Greeting greeting_1(@RequestParam(value = "name", defaultValue = "World") String name) {
-		System.out.println(name);
-		return new Greeting(counter.incrementAndGet(), String.format(template, name), 1);
-	}
-
-	@PostMapping(path = "/mashok", consumes = "application/json", produces = "application/json")
-	public Request request(@RequestBody String bodyParameter) {
-		System.out.println(bodyParameter);
-
+	@PostMapping(path = "/fill_form", consumes = "application/json", produces = "application/json")
+	public Request fill_form(@RequestBody String bodyParameter) throws Exception {
 		Gson gson = new Gson();
 		Request g = gson.fromJson(bodyParameter, Request.class);
 
-		System.out.println(g.getPath());
-		return new Request(g.getName(), String.format(template, g.getPath()));
-	} 
-
-	@PostMapping(path = "/generate_pdf", consumes = "application/json", produces = "application/json")
-	public Request generate_pdf(@RequestBody String bodyParameter) throws Exception {
-		Gson gson = new Gson();
-		Request g = gson.fromJson(bodyParameter, Request.class);
-
-		String form_data = "/mnt/c/Users/Einherjar/Work/rest-service/N-648.csv";
-		System.out.println(form_data); 
-		// String template_file = "/mnt/c/Users/Einherjar/Work/rest-service/pdf_n-648_20210531.pdf";
-		String template_file = String.format("/mnt/c/Users/Einherjar/Work/fast-visa/lib/pdf_templates/%s.pdf", g.getPath());
-    // String template_file = "/Users/byciikel/Software Engineer/Ruby/fast-visa/lib/java/itext/n-648-kotor.pdf";
-		String output_file = String.format("result/%s.pdf", g.getName());
-    // String output_file = "result/out_pdf_n-648.pdf";
+		String form_data = g.getTemplatePath();
+		String template_file = g.getTemplatePath();
+    String output_file = String.format("result/%s.pdf", g.getName());
+    
     File file = new File(output_file);
     file.getParentFile().mkdirs();
-		// new UscisFill().manipulatePdf(form_data, template_file, output_file);
 		PdfReader reader = new PdfReader(template_file);
     reader.setUnethicalReading(true);
     PdfDocument pdf = new PdfDocument(reader, new PdfWriter(output_file));
@@ -85,8 +58,8 @@ public class GreetingController {
     csvReader.close();
 		pdf.close();
 
-		System.out.println(g.getPath());
-		return new Request(g.getName(), String.format(template, g.getPath()));
+    Request response = new Request(g.getName(), g.getFormData(), g.getTemplatePath());
+    return response;
 	}
 
 	public void removeUsageRights(PdfDocument pdfDoc) {
