@@ -35,21 +35,21 @@ public class FormsController {
 
     String form_data = g.formData();
     String template_path = g.templatePath();
-    String output_file = String.format("result/%s.pdf", g.outputName());
+    String output_name = g.outputName();
 
-    fillForm(form_data, template_path, output_file);
-
-    File file = new File(output_file);
+    File file = File.createTempFile(output_name, "pdf");
     InputStreamResource resource = new InputStreamResource(new FileInputStream(file));
+    
+    fillForm(form_data, template_path, file);
+
     return ResponseEntity.ok()
-      .contentType(MediaType.parseMediaType("application/octet-stream"))
+      .contentType(MediaType.parseMediaType("application/pdf"))
       .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + g.outputName() + ".pdf\"")
       .body(resource);
   }
 
-  private void fillForm(String form_data, String template_path, String output_file) throws IOException {
-    File file = new File(output_file);
-    file.getParentFile().mkdirs();
+  private void fillForm(String form_data, String template_path, File file) throws IOException {
+    String output_file = file.getAbsolutePath();
 		PdfReader reader = new PdfReader(template_path);
     reader.setUnethicalReading(true);
     PdfDocument pdf = new PdfDocument(reader, new PdfWriter(output_file));
@@ -71,10 +71,11 @@ public class FormsController {
         .setValue(data[1]);
       }
     }
-    // form.flattenFields();
+    form.flattenFields();
     xfa.write(pdf);
     csvReader.close();
-		pdf.close();
+    pdf.close();
+    file.delete();
   }
 
   public void removeUsageRights(PdfDocument pdfDoc) {
