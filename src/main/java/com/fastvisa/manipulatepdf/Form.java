@@ -2,19 +2,19 @@ package com.fastvisa.manipulatepdf;
 
 public class Form {
   
-  private final String form_data;
+  private final Object form_data;
   private final String template_path;
   private final String output_name;
   private final String status;
 
-  public Form(String form_data, String template_path, String output_name, String status) {
+  public Form(Object form_data, String template_path, String output_name, String status) {
     this.form_data = form_data;
     this.template_path = template_path;
     this.output_name = output_name;
     this.status = status;
   }
 
-  public String formData() {
+  public Object formData() {
     return form_data;
   }
 
