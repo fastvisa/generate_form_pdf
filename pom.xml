@@ -8,10 +8,10 @@
 		<version>2.3.1.RELEASE</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>com.example</groupId>
-	<artifactId>rest-service</artifactId>
+	<groupId>com.fastvisa</groupId>
+	<artifactId>manipulate-pdf</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>rest-service</name>
+	<name>manipulate-pdf</name>
 	<description>Demo project for Spring Boot</description>
 
 	<properties>
@@ -48,7 +48,13 @@
       <artifactId>itext7-core</artifactId>
       <version>${itext.version}</version>
       <type>pom</type>
-    </dependency>
+		</dependency>
+
+		<dependency>
+			<groupId>com.googlecode.json-simple</groupId>
+			<artifactId>json-simple</artifactId>
+			<version>1.1.1</version>
+		</dependency>
 	</dependencies>
 
 	<build>

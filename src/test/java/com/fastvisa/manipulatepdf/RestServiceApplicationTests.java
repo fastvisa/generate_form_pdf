@@ -1,4 +1,4 @@
-package com.example.restservice;
+package com.fastvisa.manipulatepdf;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
