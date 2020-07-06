@@ -17,10 +17,7 @@ import com.itextpdf.kernel.pdf.PdfName;
 import com.itextpdf.kernel.pdf.PdfReader;
 import com.itextpdf.kernel.pdf.PdfWriter;
 
-import org.springframework.core.io.InputStreamResource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -29,11 +26,23 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
+import com.amazonaws.AmazonServiceException;
+import com.amazonaws.SdkClientException;
+import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.regions.Regions;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.PutObjectRequest;
+
 @RestController
 public class FormsController {
+  private String url_download;
 
   @PostMapping(path = "/api/v1/fillform", consumes = "application/json", produces = "application/json")
-  public ResponseEntity<InputStreamResource> fillform(@RequestBody String bodyParameter) throws Exception {
+  public Form fillform(@RequestBody String bodyParameter) throws Exception {
     Gson gson = new Gson();
     JSONParser jsonParser = new JSONParser();
     JSONArray form_array = new JSONArray();
@@ -55,14 +64,12 @@ public class FormsController {
     }
 
     File file = File.createTempFile(output_name, "pdf");
-    InputStreamResource resource = new InputStreamResource(new FileInputStream(file));
     
     fillForm(form_array, template_path, file);
 
-    return ResponseEntity.ok()
-      .contentType(MediaType.parseMediaType("application/pdf"))
-      .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + g.outputName() + ".pdf\"")
-      .body(resource);
+    uploadS3(file, output_name);
+
+    return new Form(form_data, template_path, output_name, url_download, "success");
   }
 
   private void fillForm(JSONArray form_array, String template_path, File file) throws IOException {
@@ -92,7 +99,6 @@ public class FormsController {
     form.flattenFields();
     xfa.write(pdf);
     pdf.close();
-    file.delete();
   }
 
   private void removeUsageRights(PdfDocument pdfDoc) {
@@ -104,6 +110,42 @@ public class FormsController {
     perms.remove(PdfName.UR3);
     if (perms.size() == 0) {
         pdfDoc.getCatalog().remove(PdfName.Perms);
+    }
+  }
+
+  @Value("${aws.accessKey}")
+  private String accessKey;
+  @Value("${aws.secretKey}")
+  private String secretKey;
+  @Value("${aws.s3bucket.name}")
+  private String bucketName;
+
+  private void uploadS3(File file, String output_name) {
+    Regions clientRegion = Regions.AP_SOUTHEAST_1;
+    AWSCredentials credentials = new BasicAWSCredentials(accessKey, secretKey);
+    try {
+      AmazonS3 s3Client = AmazonS3ClientBuilder.standard()
+        .withCredentials(new AWSStaticCredentialsProvider(credentials))
+        .withRegion(clientRegion)
+        .build();
+
+      // Boolean isBucketExist = s3Client.doesBucketExistV2(bucketName);
+
+      s3Client.putObject(bucketName, output_name, "Uploaded String Object");
+      
+      PutObjectRequest request = new PutObjectRequest(bucketName, output_name, file);
+      ObjectMetadata metadata = new ObjectMetadata();
+      metadata.setContentType("application/pdf");
+      request.setMetadata(metadata);
+      s3Client.putObject(request);
+      String url_download = s3Client.getUrl(bucketName, output_name + ".pdf").toExternalForm();
+      file.delete();
+
+      this.url_download = url_download;
+    } catch (AmazonServiceException e) {
+      e.printStackTrace();
+    } catch (SdkClientException e) {
+      e.printStackTrace();
     }
   }
   
