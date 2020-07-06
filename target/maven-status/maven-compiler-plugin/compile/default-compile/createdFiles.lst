@@ -1,3 +1,5 @@
 com/fastvisa/manipulatepdf/Form.class
+com/fastvisa/services/AwsS3Service.class
 com/fastvisa/manipulatepdf/FormsController.class
 com/fastvisa/manipulatepdf/RestServiceApplication.class
+com/fastvisa/services/FormService.class
