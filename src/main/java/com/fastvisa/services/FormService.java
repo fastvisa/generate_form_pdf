@@ -29,7 +29,7 @@ public class FormService {
     XfaForm xfa = form.getXfaForm();
     
     Map<String, PdfFormField> fields = form.getFormFields();
-    Iterator i = form_array.iterator();
+    Iterator<?> i = form_array.iterator();
     while (i.hasNext()) {
       JSONObject innerObj = (JSONObject) i.next();
       String name = innerObj.get("name").toString();
