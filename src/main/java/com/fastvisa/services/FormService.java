@@ -7,7 +7,7 @@ import java.util.Map;
 
 import com.itextpdf.forms.PdfAcroForm;
 import com.itextpdf.forms.fields.PdfFormField;
-import com.itextpdf.forms.xfa.XfaForm;
+import com.itextpdf.io.font.FontProgram;
 import com.itextpdf.io.font.constants.StandardFonts;
 import com.itextpdf.kernel.font.PdfFont;
 import com.itextpdf.kernel.font.PdfFontFactory;
@@ -35,7 +35,6 @@ public class FormService {
     removeUsageRights(pdf);
 
     PdfAcroForm form = PdfAcroForm.getAcroForm(pdf, true);
-    XfaForm xfa = form.getXfaForm();
     
     Map<String, PdfFormField> fields = form.getFormFields();
     Iterator<?> i = form_array.iterator();
@@ -49,7 +48,6 @@ public class FormService {
       }
     } 
     form.flattenFields();
-    xfa.write(pdf);
     pdf.close();
   }
 
@@ -71,8 +69,9 @@ public class FormService {
     PdfPage page = fields.get(name).getWidgets().get(0).getPage();
     Text text = new Text(value);
     PdfFont font = PdfFontFactory.createFont(StandardFonts.COURIER);
-    text.setFont(font).setFontSize(10);
+    text.setFont(font).setFontSize((float) 10);
     Paragraph p = new Paragraph(text);
+    float dynamicFontSize = getDynamicFontSize(value, fieldsRect, font);
 
     if (isMultiline) {
       form.removeField(name);
@@ -97,6 +96,7 @@ public class FormService {
     } else {
       fields.get(name)
       .setFont(font)
+      .setFontSize((float) dynamicFontSize)
       .setValue(value);
     }
   }
@@ -105,6 +105,18 @@ public class FormService {
     PdfCanvas canvas = new PdfCanvas(page);
     new Canvas(canvas, pdf, fieldsRect).add(p);
     canvas.rectangle(fieldsRect);
+  }
+
+  private float getDynamicFontSize(String value, Rectangle fieldsRect, PdfFont font) {
+    float fontSize = 10;
+    int[] fontBox = font.getFontProgram().getFontMetrics().getBbox();
+    int fontHeight = (fontBox[2] - fontBox[1]);
+    float rectHeight = fieldsRect.getHeight();
+    fontSize = Math.min(fontSize, rectHeight / fontHeight * FontProgram.UNITS_NORMALIZATION);
+    float rectWidth = fieldsRect.getWidth();
+    float stringWidth = font.getWidth(value, 1);
+    fontSize = Math.min(fontSize, rectWidth / stringWidth);
+    return fontSize;
   }
 
 }
