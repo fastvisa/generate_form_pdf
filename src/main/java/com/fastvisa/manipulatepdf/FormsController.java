@@ -47,7 +47,7 @@ public class FormsController {
 
     File file = File.createTempFile(output_name, "pdf");
     
-    formService.fillForm(form_array, template_path, file);
+    formService.fillForm(form_array, template_path, file, output_name);
 
     uploadS3(file, output_name);
 
