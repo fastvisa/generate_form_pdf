@@ -115,7 +115,7 @@ public class FormService {
     fontSize = Math.min(fontSize, rectHeight / fontHeight * FontProgram.UNITS_NORMALIZATION);
     float rectWidth = fieldsRect.getWidth();
     float stringWidth = font.getWidth(value, 1);
-    fontSize = Math.min(fontSize, rectWidth / stringWidth);
+    fontSize = Math.min(fontSize, (rectWidth - 3) / stringWidth);
     return fontSize;
   }
 
