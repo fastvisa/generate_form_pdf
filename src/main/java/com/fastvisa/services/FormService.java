@@ -1,10 +1,13 @@
 package com.fastvisa.services;
 
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
+import java.text.ParseException;
 import java.util.Iterator;
 import java.util.Map;
 
+import com.google.gson.Gson;
 import com.itextpdf.forms.PdfAcroForm;
 import com.itextpdf.forms.fields.PdfFormField;
 import com.itextpdf.io.font.FontProgram;
@@ -19,12 +22,14 @@ import com.itextpdf.kernel.pdf.PdfPage;
 import com.itextpdf.kernel.pdf.PdfReader;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
+import com.itextpdf.kernel.utils.PdfMerger;
 import com.itextpdf.layout.Canvas;
 import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Text;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
 
 public class FormService {
   public void fillForm(JSONArray form_array, String template_path, File file, String output_name) throws IOException {
@@ -50,6 +55,49 @@ public class FormService {
     form.flattenFields();
     pdf.close();
   }
+
+  public void combineForm(File combined_file, JSONArray pdf_array) throws IOException, ParseException, org.json.simple.parser.ParseException {
+    PdfDocument pdf = new PdfDocument(new PdfWriter(combined_file));
+    PdfMerger merger = new PdfMerger(pdf);
+    JSONArray form_array = new JSONArray();
+
+    Iterator<?> i = pdf_array.iterator();
+    while (i.hasNext()) {
+      JSONObject innerObj = (JSONObject) i.next();
+      Object form_data = innerObj.get("form_data");
+      String template_path = innerObj.get("template_path").toString();
+      String output_name = innerObj.get("output_name").toString();
+    
+      form_array = getFormArray(form_data);
+  
+      File file = File.createTempFile(output_name, "pdf");
+
+      fillForm(form_array, template_path, file, output_name);
+
+      PdfDocument sourcePdf = new PdfDocument(new PdfReader(file));
+      merger.merge(sourcePdf, 1, sourcePdf.getNumberOfPages());
+      sourcePdf.close();
+    }
+    pdf.close();
+  }
+
+  public JSONArray getFormArray(Object form_data) throws IOException, ParseException, org.json.simple.parser.ParseException {
+    Object form_object = new Object();
+    JSONParser jsonParser = new JSONParser();
+    JSONArray form_array = new JSONArray();
+
+    if( form_data instanceof String ) {
+      FileReader form_reader = new FileReader((String) form_data);
+      form_object = jsonParser.parse(form_reader);
+      form_array = (JSONArray) form_object;
+    } else {
+      form_object = jsonParser.parse(gson.toJson(form_data));
+      form_array = (JSONArray) form_object;
+    }
+    return form_array;
+  }
+
+  private Gson gson = new Gson();
 
   private void removeUsageRights(PdfDocument pdfDoc) {
     PdfDictionary perms = pdfDoc.getCatalog().getPdfObject().getAsDictionary(PdfName.Perms);
