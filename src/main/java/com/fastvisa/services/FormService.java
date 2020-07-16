@@ -44,7 +44,7 @@ public class FormService {
       String value = innerObj.get("value").toString();
 
       if (fields.get(name) != null) {
-        fillPdfForm(pdf, form, fields, name, value, output_name);
+        fillField(pdf, form, fields, name, value, output_name);
       }
     } 
     form.flattenFields();
@@ -63,7 +63,7 @@ public class FormService {
     }
   }
 
-  private void fillPdfForm(PdfDocument pdf, PdfAcroForm form, Map<String, PdfFormField> fields, String name, String value, String output_name) throws IOException {
+  private void fillField(PdfDocument pdf, PdfAcroForm form, Map<String, PdfFormField> fields, String name, String value, String output_name) throws IOException {
     Boolean isMultiline = fields.get(name).isMultiline();
     Rectangle fieldsRect = fields.get(name).getWidgets().get(0).getRectangle().toRectangle();
     PdfPage page = fields.get(name).getWidgets().get(0).getPage();
