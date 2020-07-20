@@ -68,15 +68,16 @@ public class FormService {
       String template_path = innerObj.get("template_path").toString();
       String output_name = innerObj.get("output_name").toString();
     
-      form_array = getFormArray(form_data);
+      if (form_data != null) {
+        form_array = getFormArray(form_data);
+        File file = File.createTempFile(output_name, "pdf");
   
-      File file = File.createTempFile(output_name, "pdf");
-
-      fillForm(form_array, template_path, file, output_name);
-
-      PdfDocument sourcePdf = new PdfDocument(new PdfReader(file));
-      merger.merge(sourcePdf, 1, sourcePdf.getNumberOfPages());
-      sourcePdf.close();
+        fillForm(form_array, template_path, file, output_name);
+  
+        PdfDocument sourcePdf = new PdfDocument(new PdfReader(file));
+        merger.merge(sourcePdf, 1, sourcePdf.getNumberOfPages());
+        sourcePdf.close();
+      }
     }
     pdf.close();
   }
