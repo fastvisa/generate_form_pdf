@@ -70,10 +70,12 @@ public class FormsController {
   private String secretKey;
   @Value("${aws.s3bucket.name}")
   private String bucketName;
+  @Value("${aws.s3bucket.region}")
+  private String region;
 
   private void uploadS3(File file, String output_name) {
     try {
-      AwsS3Service s3Service = new AwsS3Service(accessKey, secretKey);
+      AwsS3Service s3Service = new AwsS3Service(accessKey, secretKey, region);
       s3Service.postObject(bucketName, output_name + ".pdf", file);
       String url_download = s3Service.getUrl(bucketName, output_name + ".pdf");
 

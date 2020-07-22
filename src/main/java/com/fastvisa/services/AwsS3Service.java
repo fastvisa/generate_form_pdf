@@ -5,7 +5,6 @@ import java.io.File;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.regions.Regions;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.CannedAccessControlList;
@@ -15,13 +14,12 @@ import com.amazonaws.services.s3.model.PutObjectRequest;
 public class AwsS3Service {
   private final AmazonS3 s3Client;
 
-  public AwsS3Service(String accessKey, String secretKey) {
-    Regions clientRegion = Regions.AP_SOUTHEAST_1;
+  public AwsS3Service(String accessKey, String secretKey, String region) {
     AWSCredentials credentials = new BasicAWSCredentials(accessKey, secretKey);
     
     AmazonS3 client = AmazonS3ClientBuilder.standard()
       .withCredentials(new AWSStaticCredentialsProvider(credentials))
-      .withRegion(clientRegion)
+      .withRegion(region)
       .build();
 
     this.s3Client = client;
