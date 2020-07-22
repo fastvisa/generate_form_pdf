@@ -49,7 +49,7 @@ public class FormsController {
     JSONArray pdf_array = new JSONArray();
     FormService formService = new FormService();
     Date date = new Date();
-    String combined_file_name = "combined-pdf-" + date.getTime();
+    String combined_file_name = "combined-pdf";
     
     Form g = gson.fromJson(bodyParameter, Form.class);
     Object pdf_data = g.pdfData();
