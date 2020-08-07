@@ -1,7 +1,7 @@
 package com.fastvisa.manipulatepdf;
 
 import java.io.File;
-import java.util.Date;
+import java.sql.Timestamp;
 
 import com.google.gson.Gson;
 
@@ -26,12 +26,13 @@ public class FormsController {
   public Form fillform(@RequestBody String bodyParameter) throws Exception {
     FormService formService = new FormService();
     JSONArray form_array = new JSONArray();
+    Timestamp timestamp = new Timestamp(System.currentTimeMillis());
 
     Form g = gson.fromJson(bodyParameter, Form.class);
 
     Object form_data = g.formData();
     String template_path = g.templatePath();
-    String output_name = g.outputName();
+    String output_name = String.valueOf(timestamp.getTime());
     
     form_array = formService.getFormArray(form_data);
 
@@ -41,14 +42,13 @@ public class FormsController {
 
     uploadS3(file, output_name);
 
-    return new Form(new Object(), form_data, template_path, output_name, url_download, "success");
+    return new Form(new Object(), form_data, template_path, url_download, "success");
   }
 
   @PostMapping(path = "/api/v1/combineform", consumes = "application/json", produces = "application/json")
   public Form combineform(@RequestBody String bodyParameter) throws Exception {
     JSONArray pdf_array = new JSONArray();
     FormService formService = new FormService();
-    Date date = new Date();
     String combined_file_name = "combined-pdf";
     
     Form g = gson.fromJson(bodyParameter, Form.class);
@@ -61,7 +61,7 @@ public class FormsController {
 
     uploadS3(combined_file, combined_file_name);
 
-    return new Form(new Object(), new Object(), "", "", url_download, "success");
+    return new Form(new Object(), new Object(), "", url_download, "success");
   }
 
   @Value("${aws.accessKey}")

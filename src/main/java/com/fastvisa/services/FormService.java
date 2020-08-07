@@ -4,12 +4,15 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.text.ParseException;
+import java.sql.Timestamp;
 import java.util.Iterator;
 import java.util.Map;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.itextpdf.forms.PdfAcroForm;
 import com.itextpdf.forms.fields.PdfFormField;
+import com.itextpdf.forms.fields.PdfTextFormField;
 import com.itextpdf.io.font.FontProgram;
 import com.itextpdf.io.font.constants.StandardFonts;
 import com.itextpdf.kernel.font.PdfFont;
@@ -46,10 +49,11 @@ public class FormService {
     while (i.hasNext()) {
       JSONObject innerObj = (JSONObject) i.next();
       String name = innerObj.get("name").toString();
-      String value = innerObj.get("value").toString();
+      Object valueObject = innerObj.get("value");
+      String value = valueObject == null ? "" : valueObject.toString();
 
       if (fields.get(name) != null) {
-        fillField(pdf, form, fields, name, value, output_name);
+        fillField(pdf, form, fields, name, value, output_name, template_path);
       }
     } 
     form.flattenFields();
@@ -60,13 +64,14 @@ public class FormService {
     PdfDocument pdf = new PdfDocument(new PdfWriter(combined_file));
     PdfMerger merger = new PdfMerger(pdf);
     JSONArray form_array = new JSONArray();
+    Timestamp timestamp = new Timestamp(System.currentTimeMillis());
 
     Iterator<?> i = pdf_array.iterator();
     while (i.hasNext()) {
       JSONObject innerObj = (JSONObject) i.next();
       Object form_data = innerObj.get("form_data");
       String template_path = innerObj.get("template_path").toString();
-      String output_name = innerObj.get("output_name").toString();
+      String output_name = String.valueOf(timestamp.getTime());
     
       if (form_data != null) {
         form_array = getFormArray(form_data);
@@ -98,7 +103,7 @@ public class FormService {
     return form_array;
   }
 
-  private Gson gson = new Gson();
+  private Gson gson = new GsonBuilder().serializeNulls().create();
 
   private void removeUsageRights(PdfDocument pdfDoc) {
     PdfDictionary perms = pdfDoc.getCatalog().getPdfObject().getAsDictionary(PdfName.Perms);
@@ -112,7 +117,7 @@ public class FormService {
     }
   }
 
-  private void fillField(PdfDocument pdf, PdfAcroForm form, Map<String, PdfFormField> fields, String name, String value, String output_name) throws IOException {
+  private void fillField(PdfDocument pdf, PdfAcroForm form, Map<String, PdfFormField> fields, String name, String value, String output_name, String template_path) throws IOException {
     Boolean isMultiline = fields.get(name).isMultiline();
     Rectangle fieldsRect = fields.get(name).getWidgets().get(0).getRectangle().toRectangle();
     PdfPage page = fields.get(name).getWidgets().get(0).getPage();
@@ -123,24 +128,26 @@ public class FormService {
     float dynamicFontSize = getDynamicFontSize(value, fieldsRect, font);
 
     if (isMultiline) {
+      PdfTextFormField newField = PdfTextFormField.createText(pdf, fieldsRect, name, value);
       form.removeField(name);
-      if (output_name.toLowerCase().contains("n-648") && fieldsRect.getHeight() > 140) {
-        p.setFixedLeading((float) 15).setPaddingTop((float) -5);
-      } else if (output_name.toLowerCase().contains("g-845sup") && fieldsRect.getHeight() > 140) {
-        p.setFixedLeading((float) 15).setPaddingTop((float) -5);
-      } else if (fieldsRect.getHeight() > 430 && fieldsRect.getHeight() < 660) {
-        p.setFixedLeading((float) 18).setPaddingTop((float) 8);
+      if (fieldsRect.getWidth() < 200 && fieldsRect.getHeight() < 30) {
+        form.addField(newField, page);
+        fields.get(name)
+        .setFont(font)
+        .setFontSize((float) dynamicFontSize);
       } else {
-        p.setFixedLeading((float) 18).setPaddingTop(-5);
+        if (template_path.toLowerCase().contains("n-648") && fieldsRect.getHeight() > 140) {
+          p.setFixedLeading((float) 15).setPaddingTop((float) -5);
+        } else if (fieldsRect.getHeight() > 430 && fieldsRect.getHeight() < 660) {
+          p.setFixedLeading((float) 18).setPaddingTop((float) -6.5);
+        } else {
+          p.setFixedLeading((float) 18).setPaddingTop(-5);
+        }
+        addTextToCanvas(page, pdf, fieldsRect, p);
       }
-      addTextToCanvas(page, pdf, fieldsRect, p);
     } else if (name.toLowerCase().contains("state")) {
       form.removeField(name);
       p.setPaddingLeft(2);
-      addTextToCanvas(page, pdf, fieldsRect, p);
-    } else if (output_name.toLowerCase().contains("cert-ind")) {
-      form.removeField(name);
-      p.setPaddingTop(10);
       addTextToCanvas(page, pdf, fieldsRect, p);
     } else {
       fields.get(name)
