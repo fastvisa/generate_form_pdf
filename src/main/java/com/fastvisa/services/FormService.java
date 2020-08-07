@@ -15,6 +15,7 @@ import com.itextpdf.forms.fields.PdfFormField;
 import com.itextpdf.forms.fields.PdfTextFormField;
 import com.itextpdf.io.font.FontProgram;
 import com.itextpdf.io.font.constants.StandardFonts;
+import com.itextpdf.kernel.colors.ColorConstants;
 import com.itextpdf.kernel.font.PdfFont;
 import com.itextpdf.kernel.font.PdfFontFactory;
 import com.itextpdf.kernel.geom.Rectangle;
@@ -124,7 +125,7 @@ public class FormService {
     Text text = new Text(value);
     PdfFont font = PdfFontFactory.createFont(StandardFonts.COURIER);
     text.setFont(font).setFontSize((float) 10);
-    Paragraph p = new Paragraph(text);
+    Paragraph p = new Paragraph(text).setFontColor(ColorConstants.BLACK);
     float dynamicFontSize = getDynamicFontSize(value, fieldsRect, font);
 
     if (isMultiline) {
@@ -153,6 +154,7 @@ public class FormService {
       fields.get(name)
       .setFont(font)
       .setFontSize((float) dynamicFontSize)
+      .setColor(ColorConstants.BLACK)
       .setValue(value);
     }
   }
