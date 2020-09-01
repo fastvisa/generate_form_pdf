@@ -26,23 +26,26 @@ public class FormsController {
   public Form fillform(@RequestBody String bodyParameter) throws Exception {
     FormService formService = new FormService();
     JSONArray form_array = new JSONArray();
+    JSONArray structure_input_array = new JSONArray();
     Timestamp timestamp = new Timestamp(System.currentTimeMillis());
 
     Form g = gson.fromJson(bodyParameter, Form.class);
 
     Object form_data = g.formData();
-    String template_path = g.templatePath();
+    String pdf_template = g.templatePath();
+    Object structure_inputs = g.structureInputs();
     String output_name = String.valueOf(timestamp.getTime());
     
     form_array = formService.getFormArray(form_data);
+    structure_input_array = formService.getStructureInputArray(structure_inputs);
 
     File file = File.createTempFile(output_name, "pdf");
 
-    formService.fillForm(form_array, template_path, file, output_name);
+    formService.fillForm(form_array, pdf_template, structure_input_array, file, output_name);
 
     uploadS3(file, output_name);
 
-    return new Form(new Object(), form_data, template_path, url_download, "success");
+    return new Form(new Object(), form_data, pdf_template, structure_inputs, url_download);
   }
 
   @PostMapping(path = "/api/v1/combineform", consumes = "application/json", produces = "application/json")
@@ -61,7 +64,7 @@ public class FormsController {
 
     uploadS3(combined_file, combined_file_name);
 
-    return new Form(new Object(), new Object(), "", url_download, "success");
+    return new Form(new Object(), new Object(), "", new Object(), url_download);
   }
 
   @Value("${aws.accessKey}")

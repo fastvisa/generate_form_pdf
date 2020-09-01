@@ -4,16 +4,16 @@ public class Form {
   
   private final Object pdf_data;
   private final Object form_data;
-  private final String template_path;
+  private final String pdf_template;
+  private final Object structure_inputs;
   private final String url_download;
-  private final String status;
 
-  public Form(Object pdf_data, Object form_data, String template_path, String url_download, String status) {
+  public Form(Object pdf_data, Object form_data, String pdf_template, Object structure_inputs, String url_download) {
     this.pdf_data = pdf_data;
     this.form_data = form_data;
-    this.template_path = template_path;
+    this.pdf_template = pdf_template;
+    this.structure_inputs = structure_inputs;
     this.url_download = url_download;
-    this.status = status;
   }
 
   public Object pdfData() {
@@ -25,16 +25,16 @@ public class Form {
   }
 
   public String templatePath() {
-    return template_path;
+    return pdf_template;
+  }
+
+  public Object structureInputs() {
+    return structure_inputs;
   }
 
   //response json
   public String getUrl() {
     return url_download;
-  }
-
-  public String getStatus() {
-    return status;
   }
 
 }
