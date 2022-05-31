@@ -12,7 +12,7 @@
 	<artifactId>manipulate-pdf</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>manipulate-pdf</name>
-	<description>Demo project for Spring Boot</description>
+	<description>Microservice for manipulate uscis pdf</description>
 
 	<properties>
 		<java.version>1.8</java.version>
