@@ -2,17 +2,19 @@ package com.fastvisa.services;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 import com.itextpdf.html2pdf.ConverterProperties;
 import com.itextpdf.html2pdf.HtmlConverter;
-import com.itextpdf.kernel.pdf.PdfDocument;
 
 import java.io.IOException;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.spring5.SpringTemplateEngine;
+import org.thymeleaf.templatemode.TemplateMode;
+import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
+import org.thymeleaf.templateresolver.ITemplateResolver;
 import org.thymeleaf.context.Context;
 
 import com.fastvisa.manipulatepdf.Receipt;
@@ -24,16 +26,28 @@ public class ReceiptService {
   private SpringTemplateEngine templateEngine;
 
   public void generateInvoice(Receipt receipt, FileOutputStream file) throws IOException {
-    this.templateEngine = new SpringTemplateEngine();
+    templateEngine = new SpringTemplateEngine();
+    templateEngine.addTemplateResolver(htmlTemplateResolver());
 
     Context context = new Context();
     context.setVariable("receiptEntry", receipt);
-    String html = this.templateEngine.process("receipt", context);
+
+    String html = templateEngine.process("receipt", context);
 
     ConverterProperties converterProperties = new ConverterProperties();
     converterProperties.setBaseUri("http://localhost:8080"); // get css
 
-    HtmlConverter.convertToPdf(html, file, converterProperties);
+    // HtmlConverter.convertToPdf(html, file, converterProperties);
+    HtmlConverter.convertToPdf(html, new FileOutputStream("demo-html.pdf"), converterProperties);
+  }
+
+  public ITemplateResolver htmlTemplateResolver(){
+    ClassLoaderTemplateResolver templateResolver = new ClassLoaderTemplateResolver();
+    templateResolver.setPrefix("/templates/");
+    templateResolver.setSuffix(".html");
+    templateResolver.setTemplateMode(TemplateMode.HTML);
+    templateResolver.setCharacterEncoding(StandardCharsets.UTF_8.name());
+    return templateResolver;
   }
 
 }
