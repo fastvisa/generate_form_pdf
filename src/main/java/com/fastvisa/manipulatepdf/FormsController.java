@@ -4,6 +4,7 @@ import java.io.File;
 import java.sql.Timestamp;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,11 +30,11 @@ public class FormsController {
     JSONArray structure_input_array = new JSONArray();
     Timestamp timestamp = new Timestamp(System.currentTimeMillis());
 
-    Form g = gson.fromJson(bodyParameter, Form.class);
+    JsonObject convertedObject = gson.fromJson(bodyParameter, JsonObject.class);
 
-    Object form_data = g.formData();
-    String pdf_template = g.templatePath();
-    Object structure_inputs = g.structureInputs();
+    Object form_data = convertedObject.get("form_data");
+    String pdf_template = convertedObject.get("template_path").getAsString();
+    Object structure_inputs = convertedObject.get("structure_inputs");
     String output_name = String.valueOf(timestamp.getTime());
     
     form_array = formService.getFormArray(form_data);
@@ -54,8 +55,9 @@ public class FormsController {
     FormService formService = new FormService();
     String combined_file_name = "combined-pdf";
     
-    Form g = gson.fromJson(bodyParameter, Form.class);
-    Object pdf_data = g.pdfData();
+    JsonObject convertedObject = gson.fromJson(bodyParameter, JsonObject.class);
+
+    Object pdf_data = convertedObject.get("pdf_data");
     pdf_array = formService.getFormArray(pdf_data);
     
     File combined_file = File.createTempFile(combined_file_name, "pdf");
