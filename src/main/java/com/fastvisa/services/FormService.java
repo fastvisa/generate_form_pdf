@@ -35,7 +35,7 @@ public class FormService {
     removeUsageRights(pdf);
 
     PdfAcroForm form = PdfAcroForm.getAcroForm(pdf, true);
-    
+
     Map<String, PdfFormField> fields = form.getFormFields();
     Iterator<?> i = form_array.iterator();
     while (i.hasNext()) {
@@ -46,7 +46,7 @@ public class FormService {
       if (fields.get(name) != null) {
         fillPdfForm(pdf, form, fields, name, value, output_name);
       }
-    } 
+    }
     form.flattenFields();
     pdf.close();
   }
@@ -103,7 +103,10 @@ public class FormService {
 
   private void addTextToCanvas(PdfPage page, PdfDocument pdf, Rectangle fieldsRect, Paragraph p) {
     PdfCanvas canvas = new PdfCanvas(page);
-    new Canvas(canvas, pdf, fieldsRect).add(p);
+    // new Canvas(canvas, pdf, fieldsRect).add(p);
+    Canvas cvs = new Canvas(canvas, fieldsRect);
+    cvs.add(p);
+    pdf = cvs.getPdfDocument();
     canvas.rectangle(fieldsRect);
   }
 
