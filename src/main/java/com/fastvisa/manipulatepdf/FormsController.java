@@ -2,6 +2,7 @@ package com.fastvisa.manipulatepdf;
 
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileOutputStream;
 
 import com.google.gson.Gson;
 
@@ -17,6 +18,7 @@ import com.amazonaws.AmazonServiceException;
 import com.amazonaws.SdkClientException;
 import com.fastvisa.services.AwsS3Service;
 import com.fastvisa.services.FormService;
+import com.fastvisa.services.ReceiptService;
 
 @RestController
 public class FormsController {
@@ -29,7 +31,7 @@ public class FormsController {
     JSONArray form_array = new JSONArray();
     Object form_object = new Object();
     FormService formService = new FormService();
-    
+
     Form g = gson.fromJson(bodyParameter, Form.class);
 
     Object form_data = g.formData();
@@ -46,13 +48,56 @@ public class FormsController {
     }
 
     File file = File.createTempFile(output_name, "pdf");
-    
+
     formService.fillForm(form_array, template_path, file, output_name);
 
     uploadS3(file, output_name);
 
     return new Form(form_data, template_path, output_name, url_download, "success");
   }
+
+
+  @PostMapping(path = "/api/v1/generate-receipt", consumes = "application/json", produces = "application/json")
+  public Receipt generateReceipt(@RequestBody String bodyParameter) throws Exception {
+    Gson gson = new Gson();
+    JSONParser jsonParser = new JSONParser();
+    // JSONArray form_array = new JSONArray();
+    Object form_object = new Object();
+    ReceiptService receiptService = new ReceiptService();
+
+    Receipt g = gson.fromJson(bodyParameter, Receipt.class);
+
+    System.out.println(bodyParameter);
+    System.out.println(g);
+    System.out.println(g.getForm_data());
+
+    Object form_data = g.getForm_data();
+    // String template_path = g.getTemplate_path();
+    String output_name = g.getOutput_name();
+
+    if( form_data instanceof String ) {
+      System.out.println("puriring");
+      FileReader form_reader = new FileReader((String) form_data);
+      form_object = jsonParser.parse(form_reader);
+      // form_array = (JSONArray) form_object;
+    } else {
+      System.out.println("balalala");
+      form_object = jsonParser.parse(gson.toJson(form_data));
+      // form_array = (JSONArray) form_object;
+    }
+
+    System.out.println(form_object);
+
+    File file = File.createTempFile(output_name, ".pdf");
+    FileOutputStream fileOutputStream = new FileOutputStream(file);
+
+    receiptService.generateInvoice(g, fileOutputStream);
+    uploadS3(file, output_name);
+
+    return new Receipt(form_data, output_name, url_download, "success");
+  }
+
+
 
   @Value("${aws.accessKey}")
   private String accessKey;
@@ -76,5 +121,5 @@ public class FormsController {
       e.printStackTrace();
     }
   }
-  
+
 }
