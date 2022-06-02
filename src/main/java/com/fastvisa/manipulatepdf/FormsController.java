@@ -1,10 +1,11 @@
 package com.fastvisa.manipulatepdf;
 
 import java.io.File;
-import java.io.FileReader;
 import java.io.FileOutputStream;
+import java.sql.Timestamp;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,37 +24,52 @@ import com.fastvisa.services.ReceiptService;
 @RestController
 public class FormsController {
   private String url_download;
+  private Gson gson = new Gson();
 
   @PostMapping(path = "/api/v1/fillform", consumes = "application/json", produces = "application/json")
   public Form fillform(@RequestBody String bodyParameter) throws Exception {
-    Gson gson = new Gson();
-    JSONParser jsonParser = new JSONParser();
-    JSONArray form_array = new JSONArray();
-    Object form_object = new Object();
     FormService formService = new FormService();
+    JSONArray form_array = new JSONArray();
+    JSONArray structure_input_array = new JSONArray();
+    Timestamp timestamp = new Timestamp(System.currentTimeMillis());
 
-    Form g = gson.fromJson(bodyParameter, Form.class);
+    JsonObject convertedObject = gson.fromJson(bodyParameter, JsonObject.class);
 
-    Object form_data = g.formData();
-    String template_path = g.templatePath();
-    String output_name = g.outputName();
+    Object form_data = convertedObject.get("form_data");
+    String pdf_template = convertedObject.get("template_path").getAsString();
+    Object structure_inputs = convertedObject.get("structure_inputs");
+    String output_name = String.valueOf(timestamp.getTime());
 
-    if( form_data instanceof String ) {
-      FileReader form_reader = new FileReader((String) form_data);
-      form_object = jsonParser.parse(form_reader);
-      form_array = (JSONArray) form_object;
-    } else {
-      form_object = jsonParser.parse(gson.toJson(form_data));
-      form_array = (JSONArray) form_object;
-    }
+    form_array = formService.getFormArray(form_data);
+    structure_input_array = formService.getStructureInputArray(structure_inputs);
 
     File file = File.createTempFile(output_name, "pdf");
 
-    formService.fillForm(form_array, template_path, file, output_name);
+    formService.fillForm(form_array, pdf_template, structure_input_array, file, output_name);
 
     uploadS3(file, output_name);
 
-    return new Form(form_data, template_path, output_name, url_download, "success");
+    return new Form(new Object(), form_data, pdf_template, structure_inputs, url_download);
+  }
+
+  @PostMapping(path = "/api/v1/combineform", consumes = "application/json", produces = "application/json")
+  public Form combineform(@RequestBody String bodyParameter) throws Exception {
+    JSONArray pdf_array = new JSONArray();
+    FormService formService = new FormService();
+    String combined_file_name = "combined-pdf";
+
+    JsonObject convertedObject = gson.fromJson(bodyParameter, JsonObject.class);
+
+    Object pdf_data = convertedObject.get("pdf_data");
+    pdf_array = formService.getFormArray(pdf_data);
+
+    File combined_file = File.createTempFile(combined_file_name, "pdf");
+
+    formService.combineForm(combined_file, pdf_array);
+
+    uploadS3(combined_file, combined_file_name);
+
+    return new Form(new Object(), new Object(), "", new Object(), url_download);
   }
 
 
@@ -61,7 +77,6 @@ public class FormsController {
   public Receipt generateReceipt(@RequestBody String bodyParameter) throws Exception {
     Gson gson = new Gson();
     JSONParser jsonParser = new JSONParser();
-    // JSONArray form_array = new JSONArray();
     Object form_object = new Object();
     ReceiptService receiptService = new ReceiptService();
 
@@ -72,19 +87,9 @@ public class FormsController {
     System.out.println(g.getForm_data());
 
     Object form_data = g.getForm_data();
-    // String template_path = g.getTemplate_path();
     String output_name = g.getOutput_name();
 
-    if( form_data instanceof String ) {
-      System.out.println("puriring");
-      FileReader form_reader = new FileReader((String) form_data);
-      form_object = jsonParser.parse(form_reader);
-      // form_array = (JSONArray) form_object;
-    } else {
-      System.out.println("balalala");
-      form_object = jsonParser.parse(gson.toJson(form_data));
-      // form_array = (JSONArray) form_object;
-    }
+    form_object = jsonParser.parse(gson.toJson(form_data));
 
     System.out.println(form_object);
 
@@ -105,10 +110,12 @@ public class FormsController {
   private String secretKey;
   @Value("${aws.s3bucket.name}")
   private String bucketName;
+  @Value("${aws.s3bucket.region}")
+  private String region;
 
   private void uploadS3(File file, String output_name) {
     try {
-      AwsS3Service s3Service = new AwsS3Service(accessKey, secretKey);
+      AwsS3Service s3Service = new AwsS3Service(accessKey, secretKey, region);
       s3Service.postObject(bucketName, output_name + ".pdf", file);
       String url_download = s3Service.getUrl(bucketName, output_name + ".pdf");
 
