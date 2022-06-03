@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0" name="viewport">
+  <meta content="ie=edge" http-equiv="X-UA-Compatible">
+  <title>Receipt</title>
+  <!-- <link th:href="@{/static/main.css}" type="text/css" rel="stylesheet"/> -->
+  <!-- <link href="src/main/resources/public/static/main.css" type="text/css" rel="stylesheet"/> -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous"/>
+  <style type="text/css">
+    body {
+      font-family: Lato, Helvetica, sans-serif;
+    }
+    .half {
+      position: relative;
+      float: left;
+      width: 50%;
+    }
+    table.vertical th {
+      text-align: right;
+    }
+    table.vertical td {
+      text-align: right;
+    }
+    .bottom {
+      position: absolute;
+      bottom: 30px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="text-center mb-4">
+      <h5><b><span th:text="${receiptEntry.form_data.organization_name}"></span></b></h5>
+      <h5><b><span th:text="${receiptEntry.form_data.organization_address}"></span></b></h5>
+    </div>
+    <div class="row">
+      <div class="half p-3" th:if="${receiptEntry.form_data.item.user_name != 'null'}">
+        <br><br><br><br>
+        <h6><b>
+          <span th:if="${receiptEntry.form_data.item.type == 'Invoice'}">BILL TO</span>
+          <span th:unless="${receiptEntry.form_data.item.type == 'Invoice'}">PAID BY</span>
+        </b></h6>
+        <h6><span th:text="${receiptEntry.form_data.item.user_name}"></span></h6>
+        <h6><span th:text="${receiptEntry.form_data.item.user_address}"></span></h6>
+      </div>
+      <div class="half p-3">
+        <table class="table table-sm table-borderless vertical">
+          <tbody>
+            <tr>
+              <th>Date</th>
+              <td><span th:text="${receiptEntry.form_data.item.created_at}"></span></td>
+            </tr>
+            <tr>
+              <th><span th:text="${receiptEntry.form_data.item.type}"></span> Number</th>
+              <td><span th:text="${receiptEntry.form_data.item.id}"></span></td>
+            </tr>
+            <tr>
+              <th>Case Number</th>
+              <td><span th:text="${receiptEntry.form_data.item.case_id}"></span></td>
+            </tr>
+            <tr>
+              <th>Previous Balance</th>
+              <td>$<span th:text="${receiptEntry.form_data.item.previous_balance}"></span></td>
+            </tr>
+            <tr>
+              <th>After Balance</th>
+              <td>$<span th:text="${receiptEntry.form_data.item.after_balance}"></span></td>
+            </tr>
+            <tr>
+              <th>A/R Balance Due</th>
+              <td>$<span th:text="${receiptEntry.form_data.item.ar_balance_due}"></span></td>
+            </tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-bordered">
+        <thead class="thead-light">
+          <tr class="text-left">
+            <th scope="col">Date</th>
+            <th scope="col">Item name</th>
+            <th scope="col">Type</th>
+            <th scope="col">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span th:text="${receiptEntry.form_data.item.created_at}"></span></td>
+            <td><span th:text="${receiptEntry.form_data.item.description}"></span></td>
+            <td>
+              <span th:text="${receiptEntry.form_data.item.kind}"></span> - #<span th:text="${receiptEntry.form_data.item.id}"></span>
+            </td>
+            <td class="text-right text-danger" th:if="${receiptEntry.form_data.item.type == 'Invoice'}">
+              $(<span th:text="${receiptEntry.form_data.item.amount}"></span>)
+            </td>
+            <td class="text-right text-success" th:unless="${receiptEntry.form_data.item.type == 'Invoice'}">
+              $<span th:text="${receiptEntry.form_data.item.amount}"></span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+
+  </div>
+
+</body>
+</html>

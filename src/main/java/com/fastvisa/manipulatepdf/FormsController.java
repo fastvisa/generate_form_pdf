@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import org.json.simple.JSONArray;
-import org.json.simple.parser.JSONParser;
 
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.SdkClientException;
@@ -75,28 +74,17 @@ public class FormsController {
 
   @PostMapping(path = "/api/v1/generate-receipt", consumes = "application/json", produces = "application/json")
   public Receipt generateReceipt(@RequestBody String bodyParameter) throws Exception {
-    Gson gson = new Gson();
-    JSONParser jsonParser = new JSONParser();
-    Object form_object = new Object();
     ReceiptService receiptService = new ReceiptService();
+    Receipt receipt = gson.fromJson(bodyParameter, Receipt.class);
 
-    Receipt g = gson.fromJson(bodyParameter, Receipt.class);
-
-    System.out.println(bodyParameter);
-    System.out.println(g);
-    System.out.println(g.getForm_data());
-
-    Object form_data = g.getForm_data();
-    String output_name = g.getOutput_name();
-
-    form_object = jsonParser.parse(gson.toJson(form_data));
-
-    System.out.println(form_object);
+    Object form_data = receipt.getForm_data();
+    String output_name = receipt.getOutput_name();
 
     File file = File.createTempFile(output_name, ".pdf");
     FileOutputStream fileOutputStream = new FileOutputStream(file);
 
-    receiptService.generateInvoice(g, fileOutputStream);
+    receiptService.generateInvoice(receipt, fileOutputStream);
+
     uploadS3(file, output_name);
 
     return new Receipt(form_data, output_name, url_download, "success");

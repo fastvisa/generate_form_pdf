@@ -7,8 +7,6 @@ import java.nio.charset.StandardCharsets;
 import com.itextpdf.html2pdf.ConverterProperties;
 import com.itextpdf.html2pdf.HtmlConverter;
 
-import java.io.IOException;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.spring5.SpringTemplateEngine;
@@ -31,14 +29,10 @@ public class ReceiptService {
 
     Context context = new Context();
     context.setVariable("receiptEntry", receipt);
-
     String html = templateEngine.process("receipt", context);
 
     ConverterProperties converterProperties = new ConverterProperties();
-    converterProperties.setBaseUri("http://localhost:8080"); // get css
-
-    // HtmlConverter.convertToPdf(html, file, converterProperties);
-    HtmlConverter.convertToPdf(html, new FileOutputStream("demo-html.pdf"), converterProperties);
+    HtmlConverter.convertToPdf(html, file, converterProperties);
   }
 
   public ITemplateResolver htmlTemplateResolver(){
