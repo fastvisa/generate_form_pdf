@@ -23,13 +23,25 @@ public class ReceiptService {
   @Autowired
   private SpringTemplateEngine templateEngine;
 
-  public void generateInvoice(Receipt receipt, FileOutputStream file) throws IOException {
+  public void generateReceipt(Receipt receipt, FileOutputStream file) throws IOException {
     templateEngine = new SpringTemplateEngine();
     templateEngine.addTemplateResolver(htmlTemplateResolver());
 
     Context context = new Context();
     context.setVariable("receiptEntry", receipt);
     String html = templateEngine.process("receipt", context);
+
+    ConverterProperties converterProperties = new ConverterProperties();
+    HtmlConverter.convertToPdf(html, file, converterProperties);
+  }
+
+  public void generateAddendum(Receipt receipt, FileOutputStream file) throws IOException {
+    templateEngine = new SpringTemplateEngine();
+    templateEngine.addTemplateResolver(htmlTemplateResolver());
+
+    Context context = new Context();
+    context.setVariable("addendum", receipt);
+    String html = templateEngine.process("addendum", context);
 
     ConverterProperties converterProperties = new ConverterProperties();
     HtmlConverter.convertToPdf(html, file, converterProperties);
