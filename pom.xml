@@ -12,11 +12,11 @@
 	<artifactId>manipulate-pdf</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>manipulate-pdf</name>
-	<description>Demo project for Spring Boot</description>
+	<description>Microservice for manipulate uscis pdf</description>
 
 	<properties>
 		<java.version>1.8</java.version>
-		<itext.version>7.1.11</itext.version>
+		<itext.version>7.2.2</itext.version>
 	</properties>
 
 	<profiles>
@@ -58,7 +58,7 @@
 		<dependency>
 			<groupId>com.google.code.gson</groupId>
 			<artifactId>gson</artifactId>
-			<version>2.8.6</version>
+			<version>2.9.0</version>
 		</dependency>
 
 		<dependency>
@@ -66,6 +66,23 @@
       <artifactId>itext7-core</artifactId>
       <version>${itext.version}</version>
       <type>pom</type>
+		</dependency>
+
+		<dependency>
+			<groupId>com.itextpdf</groupId>
+			<artifactId>html2pdf</artifactId>
+			<version>4.0.2</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-thymeleaf</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>ognl</groupId>
+			<artifactId>ognl</artifactId>
+			<version>3.1.12</version>
 		</dependency>
 
 		<dependency>
@@ -87,7 +104,9 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
-					<executable>true</executable>
+					<jvmArguments>
+						-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=*:5005
+					</jvmArguments>
 				</configuration>
 				<dependencies>
 					<dependency>

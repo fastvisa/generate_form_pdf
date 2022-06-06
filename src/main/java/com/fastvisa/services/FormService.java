@@ -35,7 +35,7 @@ import com.itextpdf.layout.element.Cell;
 import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Table;
 import com.itextpdf.layout.element.Text;
-import com.itextpdf.layout.property.VerticalAlignment;
+import com.itextpdf.layout.properties.VerticalAlignment;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -59,7 +59,7 @@ public class FormService {
       String name = innerObj.get("name").toString();
       Object valueObject = innerObj.get("value");
       String value = valueObject == null ? "" : valueObject.toString();
-    
+
       if (fields.get(name) != null) {
         PdfPage page = fields.get(name).getWidgets().get(0).getPage();
         Text text = new Text(value);
@@ -72,7 +72,7 @@ public class FormService {
         boolean inputIsMultiline = form.getField(name).isMultiline();
 
         JSONArray structure = returnSearch(structure_input_array, name);
-        
+
         if (!structure.isEmpty()) {
           JSONObject inputInnerObj = (JSONObject) structure.get(0);
           Float x = new Float(inputInnerObj.get("x").toString()) * (float) 0.75 * (float) 0.87;
@@ -82,7 +82,7 @@ public class FormService {
           Rectangle fieldsRect = new Rectangle(x, y, width, height);
           float dynamicFontSize = getDynamicFontSize(value, fieldsRect, font);
           Boolean isMultiline = Boolean.parseBoolean(inputInnerObj.get("multiline").toString());
-  
+
           if (isMultiline == false) {
             fillFieldInput(pdf, form, name, value, pdf_template, page, p, dynamicFontSize, fieldsRect, font);
           } else {
@@ -99,7 +99,6 @@ public class FormService {
 
       }
     }
-
     form.flattenFields();
     pdf.close();
   }
@@ -118,14 +117,14 @@ public class FormService {
       Object structure_inputs = innerObj.get("structure_inputs");
       String pdf_template = innerObj.get("pdf_template").toString();
       String output_name = String.valueOf(timestamp.getTime());
-    
+
       if (form_data != null) {
         form_array = getFormArray(form_data);
         structure_input_array = getStructureInputArray(structure_inputs);
         File file = File.createTempFile(output_name, "pdf");
-  
+
         fillForm(form_array, pdf_template, structure_input_array, file, output_name);
-  
+
         PdfDocument sourcePdf = new PdfDocument(new PdfReader(file));
         merger.merge(sourcePdf, 1, sourcePdf.getNumberOfPages());
         sourcePdf.close();
@@ -243,7 +242,7 @@ public class FormService {
   public static String[] chunkArray(String[] splitted_array, int chunkSize) {
     int numOfChunks = (int) Math.ceil((double) splitted_array.length / chunkSize);
     String[] output = new String[chunkSize];
-    
+
     int index = 0;
     for(int i=0;i<splitted_array.length;i+=numOfChunks){
       String[] chunk_array = Arrays.copyOfRange(splitted_array, i, Math.min(splitted_array.length,i+numOfChunks));
@@ -284,7 +283,10 @@ public class FormService {
 
   private void addTextToCanvas(PdfPage page, PdfDocument pdf, Rectangle fieldsRect, Paragraph p) {
     PdfCanvas canvas = new PdfCanvas(page);
-    new Canvas(canvas, pdf, fieldsRect).add(p);
+    // new Canvas(canvas, pdf, fieldsRect).add(p);
+    Canvas cvs = new Canvas(canvas, fieldsRect);
+    cvs.add(p);
+    pdf = cvs.getPdfDocument();
     canvas.rectangle(fieldsRect);
   }
 
