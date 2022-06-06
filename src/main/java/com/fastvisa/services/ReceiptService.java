@@ -31,12 +31,17 @@ public class ReceiptService {
     String receipt_type = receipt.getReceipt_type();
     String html = "";
 
-    if(receipt_type == "Addendum"){
-      context.setVariable("addendum", receipt);
-      html = templateEngine.process("addendum", context);
-    } else {
-      context.setVariable("receiptEntry", receipt);
-      html = templateEngine.process("receipt", context);
+    switch(receipt_type){
+      case "Addendum":
+        context.setVariable("addendum", receipt);
+        html = templateEngine.process("addendum", context);
+        break;
+      case "Receipt":
+        context.setVariable("receiptEntry", receipt);
+        html = templateEngine.process("receipt", context);
+        break;
+      default:
+        break;
     }
 
     ConverterProperties converterProperties = new ConverterProperties();
