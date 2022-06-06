@@ -79,6 +79,7 @@ public class FormsController {
 
     Object form_data = receipt.getForm_data();
     String output_name = receipt.getOutput_name();
+    String receipt_type = receipt.getReceipt_type();
 
     File file = File.createTempFile(output_name, ".pdf");
     FileOutputStream fileOutputStream = new FileOutputStream(file);
@@ -87,28 +88,7 @@ public class FormsController {
 
     uploadS3(file, output_name);
 
-    return new Receipt(form_data, output_name, url_download, "success");
-  }
-
-  @PostMapping(path = "/api/v1/generate-addendum", consumes = "application/json", produces = "application/json")
-  public Receipt generateAddendum(@RequestBody String bodyParameter) throws Exception {
-    ReceiptService receiptService = new ReceiptService();
-    Receipt receipt = gson.fromJson(bodyParameter, Receipt.class);
-
-    Object form_data = receipt.getForm_data();
-    String output_name = receipt.getOutput_name();
-
-    System.out.println(output_name);
-    System.out.println(form_data);
-
-    File file = File.createTempFile(output_name, ".pdf");
-    FileOutputStream fileOutputStream = new FileOutputStream(file);
-
-    receiptService.generateAddendum(receipt, fileOutputStream);
-
-    uploadS3(file, output_name);
-
-    return new Receipt(form_data, output_name, url_download, "success");
+    return new Receipt(form_data, output_name, receipt_type, url_download, "success");
   }
 
 

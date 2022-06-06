@@ -28,20 +28,16 @@ public class ReceiptService {
     templateEngine.addTemplateResolver(htmlTemplateResolver());
 
     Context context = new Context();
-    context.setVariable("receiptEntry", receipt);
-    String html = templateEngine.process("receipt", context);
+    String receipt_type = receipt.getReceipt_type();
+    String html = "";
 
-    ConverterProperties converterProperties = new ConverterProperties();
-    HtmlConverter.convertToPdf(html, file, converterProperties);
-  }
-
-  public void generateAddendum(Receipt receipt, FileOutputStream file) throws IOException {
-    templateEngine = new SpringTemplateEngine();
-    templateEngine.addTemplateResolver(htmlTemplateResolver());
-
-    Context context = new Context();
-    context.setVariable("addendum", receipt);
-    String html = templateEngine.process("addendum", context);
+    if(receipt_type == "Addendum"){
+      context.setVariable("addendum", receipt);
+      html = templateEngine.process("addendum", context);
+    } else {
+      context.setVariable("receiptEntry", receipt);
+      html = templateEngine.process("receipt", context);
+    }
 
     ConverterProperties converterProperties = new ConverterProperties();
     HtmlConverter.convertToPdf(html, file, converterProperties);
