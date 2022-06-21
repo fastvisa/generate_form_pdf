@@ -29,26 +29,26 @@ public class FormsController {
   public Form fillform(@RequestBody String bodyParameter) throws Exception {
     FormService formService = new FormService();
     JSONArray form_array = new JSONArray();
-    JSONArray structure_input_array = new JSONArray();
     Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+    JSONArray custom_fields_array = new JSONArray();
 
     JsonObject convertedObject = gson.fromJson(bodyParameter, JsonObject.class);
 
     Object form_data = convertedObject.get("form_data");
     String pdf_template = convertedObject.get("template_path").getAsString();
-    Object structure_inputs = convertedObject.get("structure_inputs");
     String output_name = String.valueOf(timestamp.getTime());
+    Object custom_fields = convertedObject.get("custom_fields");
 
     form_array = formService.getFormArray(form_data);
-    structure_input_array = formService.getStructureInputArray(structure_inputs);
+    custom_fields_array = formService.getCustomFieldArray(custom_fields);
 
     File file = File.createTempFile(output_name, "pdf");
 
-    formService.fillForm(form_array, pdf_template, structure_input_array, file, output_name);
+    formService.fillForm(form_array, pdf_template, file, output_name, custom_fields_array);
 
     uploadS3(file, output_name);
 
-    return new Form(new Object(), form_data, pdf_template, structure_inputs, url_download);
+    return new Form(new Object(), form_data, pdf_template, url_download);
   }
 
   @PostMapping(path = "/api/v1/combineform", consumes = "application/json", produces = "application/json")
@@ -68,7 +68,7 @@ public class FormsController {
 
     uploadS3(combined_file, combined_file_name);
 
-    return new Form(new Object(), new Object(), "", new Object(), url_download);
+    return new Form(new Object(), new Object(), "", url_download);
   }
 
 

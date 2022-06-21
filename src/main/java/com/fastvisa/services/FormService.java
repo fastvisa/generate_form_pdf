@@ -40,10 +40,11 @@ import com.itextpdf.layout.properties.VerticalAlignment;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
+import org.springframework.util.ObjectUtils;
 import org.yaml.snakeyaml.util.UriEncoder;
 
 public class FormService {
-  public void fillForm(JSONArray form_array, String pdf_template, JSONArray structure_input_array, File file, String output_name) throws IOException {
+  public void fillForm(JSONArray form_array, String pdf_template, File file, String output_name, JSONArray custom_fields) throws IOException {
     String output_file = file.getAbsolutePath();
 		PdfReader reader = new PdfReader(pdf_template);
     reader.setUnethicalReading(true);
@@ -60,43 +61,26 @@ public class FormService {
       Object valueObject = innerObj.get("value");
       String value = valueObject == null ? "" : valueObject.toString();
 
+      JSONObject filtered_data = returnFormSearch(custom_fields, name);
+
       if (fields.get(name) != null) {
         PdfPage page = fields.get(name).getWidgets().get(0).getPage();
         Text text = new Text(value);
         PdfFont font = PdfFontFactory.createFont(StandardFonts.COURIER);
         text.setFont(font).setFontSize((float) 10);
         Paragraph p = new Paragraph(text).setFontColor(ColorConstants.BLACK);
-
         Rectangle fieldsRectInput = fields.get(name).getWidgets().get(0).getRectangle().toRectangle();
         float inputDynamicFontSize = getDynamicFontSize(value, fieldsRectInput, font);
-        boolean inputIsMultiline = form.getField(name).isMultiline();
-
-        JSONArray structure = returnSearch(structure_input_array, name);
-
-        if (!structure.isEmpty()) {
-          JSONObject inputInnerObj = (JSONObject) structure.get(0);
-          Float x = new Float(inputInnerObj.get("x").toString()) * (float) 0.75 * (float) 0.87;
-          Float y = new Float(inputInnerObj.get("y").toString()) * (float) 0.75 * (float) 0.87;
-          Float width = new Float(inputInnerObj.get("width").toString()) * (float) 0.75 * (float) 0.87;
-          Float height = new Float(inputInnerObj.get("height").toString()) * (float) 0.75 * (float) 0.87;
-          Rectangle fieldsRect = new Rectangle(x, y, width, height);
-          float dynamicFontSize = getDynamicFontSize(value, fieldsRect, font);
-          Boolean isMultiline = Boolean.parseBoolean(inputInnerObj.get("multiline").toString());
-
-          if (isMultiline == false) {
-            fillFieldInput(pdf, form, name, value, pdf_template, page, p, dynamicFontSize, fieldsRect, font);
-          } else {
-            Float row = Float.parseFloat(inputInnerObj.get("row").toString());
-            fillStructureInputMultiline(pdf, form, name, value, pdf_template, page, p, dynamicFontSize, fieldsRect, font, Math.round(row));
-          }
+        boolean isMultilineInput = form.getField(name).isMultiline();
+        if (isMultilineInput == false) {
+          fillFieldInput(pdf, form, name, value, pdf_template, page, p, inputDynamicFontSize, fieldsRectInput, font);
+        } else if (!filtered_data.isEmpty() && filtered_data.get("field_type").equals("custom_shrink")) {
+          float font_size = Float.parseFloat(filtered_data.get("font_size").toString());
+          text.setFont(font).setFontSize(font_size);
+          fillFieldMultiline(pdf, form, name, value, pdf_template, page, p, font_size, fieldsRectInput, font, true);
         } else {
-          if (inputIsMultiline == false) {
-            fillFieldInput(pdf, form, name, value, pdf_template, page, p, inputDynamicFontSize, fieldsRectInput, font);
-          } else {
-            fillFieldMultiline(pdf, form, name, value, pdf_template, page, p, inputDynamicFontSize, fieldsRectInput, font);
-          }
+          fillFieldMultiline(pdf, form, name, value, pdf_template, page, p, inputDynamicFontSize, fieldsRectInput, font, false);
         }
-
       }
     }
     form.flattenFields();
@@ -107,23 +91,23 @@ public class FormService {
     PdfDocument pdf = new PdfDocument(new PdfWriter(combined_file));
     PdfMerger merger = new PdfMerger(pdf);
     JSONArray form_array = new JSONArray();
-    JSONArray structure_input_array = new JSONArray();
+    JSONArray custom_fields_array = new JSONArray();
     Timestamp timestamp = new Timestamp(System.currentTimeMillis());
 
     Iterator<?> i = pdf_array.iterator();
     while (i.hasNext()) {
       JSONObject innerObj = (JSONObject) i.next();
       Object form_data = innerObj.get("form_data");
-      Object structure_inputs = innerObj.get("structure_inputs");
-      String pdf_template = innerObj.get("pdf_template").toString();
+      Object custom_fields = innerObj.get("custom_fields");
+      String pdf_template = innerObj.get("template_path").toString();
       String output_name = String.valueOf(timestamp.getTime());
 
       if (form_data != null) {
         form_array = getFormArray(form_data);
-        structure_input_array = getStructureInputArray(structure_inputs);
+        custom_fields_array = getCustomFieldArray(custom_fields);
         File file = File.createTempFile(output_name, "pdf");
 
-        fillForm(form_array, pdf_template, structure_input_array, file, output_name);
+        fillForm(form_array, pdf_template, file, output_name, custom_fields_array);
 
         PdfDocument sourcePdf = new PdfDocument(new PdfReader(file));
         merger.merge(sourcePdf, 1, sourcePdf.getNumberOfPages());
@@ -149,14 +133,14 @@ public class FormService {
     return form_array;
   }
 
-  public JSONArray getStructureInputArray(Object structure_inputs) throws IOException, ParseException, org.json.simple.parser.ParseException {
-    Object structure_input_object = new Object();
+  public JSONArray getCustomFieldArray(Object custom_fields) throws IOException, ParseException, org.json.simple.parser.ParseException {
+    Object custom_fields_object = new Object();
     JSONParser jsonParser = new JSONParser();
-    JSONArray structure_input_array = new JSONArray();
+    JSONArray custom_fields_array = new JSONArray();
 
-    structure_input_object = jsonParser.parse(gson.toJson(structure_inputs));
-    structure_input_array = (JSONArray) structure_input_object;
-    return structure_input_array;
+    custom_fields_object = jsonParser.parse(gson.toJson(custom_fields));
+    custom_fields_array = (JSONArray) custom_fields_object;
+    return custom_fields_array;
   }
 
   private Gson gson = new GsonBuilder().serializeNulls().create();
@@ -183,7 +167,8 @@ public class FormService {
     Paragraph p,
     float dynamicFontSize,
     Rectangle fieldsRect,
-    PdfFont font
+    PdfFont font,
+    Boolean isCustomShrink
   ) throws IOException {
     PdfTextFormField newField = PdfTextFormField.createText(pdf, fieldsRect, name, value);
     form.removeField(name);
@@ -197,63 +182,13 @@ public class FormService {
         p.setFixedLeading((float) 15).setPaddingTop((float) -5);
       } else if (fieldsRect.getHeight() > 430 && fieldsRect.getHeight() < 660) {
         p.setFixedLeading((float) 18).setPaddingTop((float) -6.5);
+      } else if (isCustomShrink) {
+        p.setFixedLeading((float) dynamicFontSize);
       } else {
         p.setFixedLeading((float) 18).setPaddingTop(-5);
       }
       addTextToCanvas(page, pdf, fieldsRect, p);
     }
-  }
-
-  private void fillStructureInputMultiline(
-    PdfDocument pdf,
-    PdfAcroForm form,
-    String name,
-    String value,
-    String pdf_template,
-    PdfPage page,
-    Paragraph p,
-    float dynamicFontSize,
-    Rectangle fieldsRect,
-    PdfFont font,
-    int row
-  ) throws IOException {
-    Rectangle cellStaticRect = new Rectangle(fieldsRect.getX(), fieldsRect.getY(), fieldsRect.getWidth(), 14);
-    int page_number = pdf.getPageNumber(page);
-    form.removeField(name);
-    String[] splitted_array = value.split(" ", 0);
-    String[] value_array = chunkArray(splitted_array, row);
-
-    Table table = new Table(1);
-    Cell cell;
-    for (int i = 0; i < row; i++) {
-      float cellDynamicFontSize = getDynamicFontSize(value_array[i], cellStaticRect, font);
-      cell = new Cell().add(new Paragraph(value_array[i]).setFontSize(cellDynamicFontSize).setFont(font));
-      cell.setHeight((float) 14);
-      cell.setBorder(Border.NO_BORDER)
-          .setVerticalAlignment(VerticalAlignment.MIDDLE);
-      table.addCell(cell);
-    }
-    table.setFixedPosition(page_number, fieldsRect.getLeft(), fieldsRect.getBottom(), fieldsRect.getWidth());
-    table.setBorder(Border.NO_BORDER);
-    Document doc = new Document(page.getDocument());
-    doc.add(table);
-  }
-
-  public static String[] chunkArray(String[] splitted_array, int chunkSize) {
-    int numOfChunks = (int) Math.ceil((double) splitted_array.length / chunkSize);
-    String[] output = new String[chunkSize];
-
-    int index = 0;
-    for(int i=0;i<splitted_array.length;i+=numOfChunks){
-      String[] chunk_array = Arrays.copyOfRange(splitted_array, i, Math.min(splitted_array.length,i+numOfChunks));
-      StringBuffer sb = new StringBuffer();
-      for(int s = 0; s < chunk_array.length; s++) {
-        sb.append(chunk_array[s] + " ");
-      }
-      output[index++] = sb.toString();
-    }
-
-    return output;
   }
 
   private void fillFieldInput(
@@ -290,17 +225,16 @@ public class FormService {
     canvas.rectangle(fieldsRect);
   }
 
-  private JSONArray returnSearch(JSONArray array, String searchValue){
-    JSONArray filtedArray = new JSONArray();
+  private JSONObject returnFormSearch(JSONArray array, String searchValue){
+    JSONObject filteredObject = new JSONObject();
     for (int i = 0; i < array.size(); i++) {
       JSONObject obj= null;
       obj = (JSONObject) array.get(i);
-      if(UriEncoder.decode(obj.get("field_name").toString()).equals(searchValue))
-      {
-        filtedArray.add(obj);
+      if(UriEncoder.decode(obj.get("label").toString()).equals(searchValue)) {
+        filteredObject = obj;
       }
     }
-    return filtedArray;
+    return filteredObject;
   }
 
   private float getDynamicFontSize(String value, Rectangle fieldsRect, PdfFont font) {
