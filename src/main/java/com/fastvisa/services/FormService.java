@@ -5,7 +5,6 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.sql.Timestamp;
 import java.text.ParseException;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -29,18 +28,12 @@ import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
 import com.itextpdf.kernel.utils.PdfMerger;
 import com.itextpdf.layout.Canvas;
-import com.itextpdf.layout.Document;
-import com.itextpdf.layout.borders.Border;
-import com.itextpdf.layout.element.Cell;
 import com.itextpdf.layout.element.Paragraph;
-import com.itextpdf.layout.element.Table;
 import com.itextpdf.layout.element.Text;
-import com.itextpdf.layout.properties.VerticalAlignment;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
-import org.springframework.util.ObjectUtils;
 import org.yaml.snakeyaml.util.UriEncoder;
 
 public class FormService {
@@ -75,7 +68,7 @@ public class FormService {
         if (isMultilineInput == false) {
           fillFieldInput(pdf, form, name, value, pdf_template, page, p, inputDynamicFontSize, fieldsRectInput, font);
         } else if (!filtered_data.isEmpty() && filtered_data.get("field_type").equals("custom_shrink")) {
-          float font_size = Float.parseFloat(filtered_data.get("font_size").toString());
+          float font_size = Float.parseFloat(filtered_data.get("font_size").toString()) * 72 / 96;
           text.setFont(font).setFontSize(font_size);
           fillFieldMultiline(pdf, form, name, value, pdf_template, page, p, font_size, fieldsRectInput, font, true);
         } else {
@@ -178,14 +171,14 @@ public class FormService {
       .setFont(font)
       .setFontSize((float) dynamicFontSize);
     } else {
-      if (pdf_template.toLowerCase().contains("n-648") && fieldsRect.getHeight() > 140) {
-        p.setFixedLeading((float) 15).setPaddingTop((float) -5);
-      } else if (fieldsRect.getHeight() > 430 && fieldsRect.getHeight() < 660) {
-        p.setFixedLeading((float) 18).setPaddingTop((float) -6.5);
-      } else if (isCustomShrink) {
-        p.setFixedLeading((float) dynamicFontSize);
-      } else {
-        p.setFixedLeading((float) 18).setPaddingTop(-5);
+      if (!isCustomShrink) {
+        if (pdf_template.toLowerCase().contains("n-648") && fieldsRect.getHeight() > 140) {
+          p.setFixedLeading((float) 15).setPaddingTop((float) -5);
+        } else if (fieldsRect.getHeight() > 430 && fieldsRect.getHeight() < 660) {
+          p.setFixedLeading((float) 18).setPaddingTop((float) -6.5);
+        } else {
+          p.setFixedLeading((float) 18).setPaddingTop(-5);
+        }
       }
       addTextToCanvas(page, pdf, fieldsRect, p);
     }
@@ -218,10 +211,11 @@ public class FormService {
 
   private void addTextToCanvas(PdfPage page, PdfDocument pdf, Rectangle fieldsRect, Paragraph p) {
     PdfCanvas canvas = new PdfCanvas(page);
-    // new Canvas(canvas, pdf, fieldsRect).add(p);
-    Canvas cvs = new Canvas(canvas, fieldsRect);
-    cvs.add(p);
-    pdf = cvs.getPdfDocument();
+    try (
+    Canvas cvs = new Canvas(canvas, fieldsRect)) {
+      cvs.add(p);
+      pdf = cvs.getPdfDocument();
+    }
     canvas.rectangle(fieldsRect);
   }
 
