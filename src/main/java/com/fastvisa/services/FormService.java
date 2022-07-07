@@ -67,13 +67,38 @@ public class FormService {
         boolean isMultilineInput = form.getField(name).isMultiline();
         if (isMultilineInput == false) {
           fillFieldInput(pdf, form, name, value, pdf_template, page, p, inputDynamicFontSize, fieldsRectInput, font);
-        } else if (!filtered_data.isEmpty() && filtered_data.get("field_type").equals("custom_shrink")) {
-          float font_size = Float.parseFloat(filtered_data.get("font_size").toString()) * 72 / 96;
-          text.setFont(font).setFontSize(font_size);
-          fillFieldMultiline(pdf, form, name, value, pdf_template, page, p, font_size, fieldsRectInput, font, true);
         } else {
           fillFieldMultiline(pdf, form, name, value, pdf_template, page, p, inputDynamicFontSize, fieldsRectInput, font, false);
         }
+        if (!filtered_data.isEmpty() && filtered_data.get("field_type").equals("custom_shrink")) {
+          float font_size = Float.parseFloat(filtered_data.get("font_size").toString()) * 72 / 96;
+          text.setFont(font).setFontSize(font_size);
+          fillFieldMultiline(pdf, form, name, value, pdf_template, page, p, font_size, fieldsRectInput, font, true);
+        }
+      }
+    }
+    Iterator<?> j = custom_fields.iterator();
+    while (j.hasNext()) {
+      JSONObject innerObj = (JSONObject) j.next();
+      String field_type = innerObj.get("field_type").toString();
+      
+      if (field_type.equals("text_field")) {
+        String value_text = innerObj.get("value").toString();
+        int page = Integer.parseInt(innerObj.get("page").toString());
+        int x = Integer.parseInt(innerObj.get("x").toString());
+        int y = Integer.parseInt(innerObj.get("y").toString());
+        float width = Float.valueOf(innerObj.get("width").toString());
+        float height = Float.valueOf(innerObj.get("height").toString());
+        
+        int convertedX = (int) ((x + 25) * pdf.getPage(page).getMediaBox().getWidth() / 935); // (x of html + input padding) * pdf width / html width 
+        int convertedY = (int) ((1210 - y - 40) * pdf.getPage(page).getMediaBox().getHeight() / 1210); // (html width - y of html - input height) * pdf height / html height
+
+        Rectangle rect = new Rectangle(convertedX, convertedY, width, height);
+        Text text = new Text(value_text);
+        PdfFont font = PdfFontFactory.createFont(StandardFonts.COURIER);
+        text.setFont(font).setFontSize((float) 10);
+        Paragraph par = new Paragraph(text).setFontColor(ColorConstants.BLACK);
+        addTextToCanvas(pdf.getPage(page), pdf, rect, par); 
       }
     }
     form.flattenFields();
