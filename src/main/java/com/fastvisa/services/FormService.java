@@ -67,13 +67,12 @@ public class FormService {
         boolean isMultilineInput = form.getField(name).isMultiline();
         if (isMultilineInput == false) {
           fillFieldInput(pdf, form, name, value, pdf_template, page, p, inputDynamicFontSize, fieldsRectInput, font);
-        } else {
-          fillFieldMultiline(pdf, form, name, value, pdf_template, page, p, inputDynamicFontSize, fieldsRectInput, font, false);
-        }
-        if (!filtered_data.isEmpty() && filtered_data.get("field_type").equals("custom_shrink")) {
+        } else if (!filtered_data.isEmpty() && filtered_data.get("field_type").equals("custom_shrink")) {
           float font_size = Float.parseFloat(filtered_data.get("font_size").toString()) * 72 / 96;
           text.setFont(font).setFontSize(font_size);
           fillFieldMultiline(pdf, form, name, value, pdf_template, page, p, font_size, fieldsRectInput, font, true);
+        } else {
+          fillFieldMultiline(pdf, form, name, value, pdf_template, page, p, inputDynamicFontSize, fieldsRectInput, font, false);
         }
       }
     }
