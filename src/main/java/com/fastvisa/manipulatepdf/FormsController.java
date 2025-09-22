@@ -8,9 +8,13 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.json.simple.JSONArray;
 
@@ -24,6 +28,20 @@ import com.fastvisa.services.ReceiptService;
 public class FormsController {
   private String url_download;
   private Gson gson = new Gson();
+
+  @Value("${project.version:0.0.1-SNAPSHOT}")
+  private String projectVersion;
+
+  @GetMapping("/health")
+  public ResponseEntity<Map<String, Object>> health() {
+    Map<String, Object> healthStatus = new HashMap<>();
+    healthStatus.put("status", "UP");
+    healthStatus.put("version", projectVersion);
+    healthStatus.put("service", "manipulate-pdf");
+    healthStatus.put("timestamp", System.currentTimeMillis());
+    
+    return ResponseEntity.ok(healthStatus);
+  }
 
   @PostMapping(path = "/api/v1/fillform", consumes = "application/json", produces = "application/json")
   public Form fillform(@RequestBody String bodyParameter) throws Exception {
