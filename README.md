@@ -282,6 +282,84 @@ curl http://localhost:8080/health
 ./health-check.sh
 ```
 
+## 📦 Automated Versioning System
+
+This project uses an automated versioning system that automatically bumps the version and creates releases when PRs are merged to the master branch.
+
+### How It Works
+
+#### Automatic Versioning (GitHub Actions)
+
+When a PR is merged to the `master` branch, a GitHub Action workflow automatically:
+
+1. **Analyzes the changes** to determine the version bump type:
+   - **Major bump** (X.0.0): PR title/commits contain "breaking", "major", or "BREAKING CHANGE"
+   - **Minor bump** (X.Y.0): PR title/commits contain "feat", "feature", or "minor"  
+   - **Patch bump** (X.Y.Z): Default for all other changes
+
+2. **Updates the version**:
+   - Removes `-SNAPSHOT` from current version
+   - Increments the appropriate version number
+   - Updates `pom.xml` with the new version
+
+3. **Creates a release**:
+   - Commits the version change
+   - Creates a git tag (e.g., `v1.2.3`)
+   - Pushes the changes and tag
+   - Builds the project
+   - Creates a GitHub release with the JAR file
+
+#### Manual Versioning (Local Script)
+
+You can also bump versions manually using the provided script:
+
+```bash
+# Patch bump (1.0.0 -> 1.0.1) - default
+./scripts/bump-version.sh
+
+# Minor bump (1.0.0 -> 1.1.0)
+./scripts/bump-version.sh minor
+
+# Major bump (1.0.0 -> 2.0.0)  
+./scripts/bump-version.sh major
+```
+
+The script will:
+- Validate the current state (no uncommitted changes)
+- Update the pom.xml version
+- Run tests to ensure everything works
+- Commit the change and create a tag
+- Optionally push the changes
+
+### Version Naming Convention
+
+- **Format**: `X.Y.Z` (semantic versioning)
+- **Tags**: `vX.Y.Z` (e.g., `v1.2.3`)
+- **Development**: Versions end with `-SNAPSHOT` during development
+
+### PR Guidelines for Automatic Versioning
+
+To control automatic version bumping, use these keywords in your PR title or commit messages:
+
+- **Major release**: Include "breaking", "major", or "BREAKING CHANGE"
+- **Minor release**: Include "feat", "feature", or "minor"
+- **Patch release**: Default behavior, no special keywords needed
+
+#### Examples
+
+**PR Titles that trigger different version bumps:**
+
+- `"Fix login bug"` → Patch bump (1.0.0 → 1.0.1)
+- `"feat: Add new user dashboard"` → Minor bump (1.0.0 → 1.1.0)  
+- `"BREAKING CHANGE: Redesign API endpoints"` → Major bump (1.0.0 → 2.0.0)
+
+**Current Version**
+
+The current version can always be found in:
+- `pom.xml` - The project version
+- Git tags - All released versions
+- GitHub releases - Published versions with artifacts
+
 ## 🤝 Contributing
 
 1. Ensure no sensitive data is committed
@@ -289,6 +367,7 @@ curl http://localhost:8080/health
 3. Test all configurations work
 4. Follow existing code style
 5. Update documentation as needed
+6. Use appropriate PR titles for version bumping (see versioning section above)
 
 ## 🔧 Troubleshooting
 
