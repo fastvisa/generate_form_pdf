@@ -108,20 +108,11 @@ jobs:
       run: |
         mvn clean compile test -Dspring.profiles.active=test
 
-    - name: Commit version changes
-      run: |
-        NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add pom.xml
-        git commit -m "chore: bump version to $NEW_VERSION [skip ci]" || exit 0
-
     - name: Create and push tag
       run: |
         NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
         git tag -a "v$NEW_VERSION" -m "Release version $NEW_VERSION"
         git push origin "v$NEW_VERSION"
-        git push origin master
 
     - name: Build JAR for release
       run: |
