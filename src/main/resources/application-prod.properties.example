@@ -1,0 +1,39 @@
+# Production Configuration Example
+# Copy this file to application-prod.properties and configure environment variables
+
+# Server Configuration
+server.port=${PORT:8080}
+server.servlet.context-path=
+
+# AWS Configuration (Production values - should be set via environment variables)
+aws.accessKey=${AWS_ACCESS_KEY}
+aws.secretKey=${AWS_SECRET_KEY}
+aws.s3bucket.name=${AWS_S3_BUCKET_NAME}
+aws.s3bucket.region=${AWS_S3_BUCKET_REGION:us-east-1}
+
+# Logging Configuration
+logging.level.com.fastvisa=${LOG_LEVEL:INFO}
+logging.level.org.springframework=WARN
+logging.level.org.apache=WARN
+logging.pattern.console=%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n
+logging.pattern.file=%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n
+
+# JVM Configuration for production
+spring.jpa.show-sql=false
+spring.jpa.properties.hibernate.format_sql=false
+
+# Actuator endpoints for monitoring (health endpoint)
+management.endpoints.web.exposure.include=health,info,metrics
+management.endpoint.health.show-details=when_authorized
+management.metrics.export.prometheus.enabled=true
+
+# Application info
+info.app.name=@project.name@
+info.app.version=@project.version@
+info.app.description=@project.description@
+
+# Security headers (production hardening)
+server.error.include-message=never
+server.error.include-binding-errors=never
+server.error.include-stacktrace=never
+server.error.include-exception=false

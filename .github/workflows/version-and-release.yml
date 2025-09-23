@@ -1,0 +1,148 @@
+name: Version Bump and Release
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    types: [ closed ]
+    branches: [ master ]
+
+jobs:
+  version-and-release:
+    if: github.event.pull_request.merged == true || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+      packages: write
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set up JDK 8
+      uses: actions/setup-java@v4
+      with:
+        java-version: '8'
+        distribution: 'temurin'
+
+    - name: Cache Maven packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+
+    - name: Get current version from pom.xml
+      id: get_version
+      run: |
+        CURRENT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+        echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+        echo "Current version: $CURRENT_VERSION"
+        
+        # Extract base version without SNAPSHOT
+        BASE_VERSION=$(echo $CURRENT_VERSION | sed 's/-SNAPSHOT//')
+        echo "base_version=$BASE_VERSION" >> $GITHUB_OUTPUT
+
+    - name: Determine version bump type
+      id: version_type
+      run: |
+        # Check commit messages and PR title for version bump indicators
+        PR_TITLE="${{ github.event.pull_request.title }}"
+        COMMIT_MSG="${{ github.event.head_commit.message }}"
+        
+        # Default to patch
+        BUMP_TYPE="patch"
+        
+        # Check for breaking changes or major keywords
+        if echo "$PR_TITLE $COMMIT_MSG" | grep -iE "(breaking|major|BREAKING CHANGE)" > /dev/null; then
+          BUMP_TYPE="major"
+        # Check for features or minor keywords  
+        elif echo "$PR_TITLE $COMMIT_MSG" | grep -iE "(feat|feature|minor)" > /dev/null; then
+          BUMP_TYPE="minor"
+        fi
+        
+        echo "bump_type=$BUMP_TYPE" >> $GITHUB_OUTPUT
+        echo "Version bump type: $BUMP_TYPE"
+
+    - name: Calculate new version
+      id: new_version
+      run: |
+        BASE_VERSION="${{ steps.get_version.outputs.base_version }}"
+        BUMP_TYPE="${{ steps.version_type.outputs.bump_type }}"
+        
+        # Parse version numbers
+        IFS='.' read -r -a version_parts <<< "$BASE_VERSION"
+        major=${version_parts[0]}
+        minor=${version_parts[1]}
+        patch=${version_parts[2]}
+        
+        # Bump version based on type
+        case $BUMP_TYPE in
+          major)
+            major=$((major + 1))
+            minor=0
+            patch=0
+            ;;
+          minor)
+            minor=$((minor + 1))
+            patch=0
+            ;;
+          patch)
+            patch=$((patch + 1))
+            ;;
+        esac
+        
+        NEW_VERSION="$major.$minor.$patch"
+        echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+        echo "New version: $NEW_VERSION"
+
+    - name: Update pom.xml version
+      run: |
+        NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
+        mvn versions:set -DnewVersion=$NEW_VERSION
+        mvn versions:commit
+
+    - name: Build and test
+      run: |
+        mvn clean compile test
+
+    - name: Commit version changes
+      run: |
+        NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add pom.xml
+        git commit -m "chore: bump version to $NEW_VERSION [skip ci]" || exit 0
+
+    - name: Create and push tag
+      run: |
+        NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
+        git tag -a "v$NEW_VERSION" -m "Release version $NEW_VERSION"
+        git push origin "v$NEW_VERSION"
+        git push origin master
+
+    - name: Build JAR for release
+      run: |
+        mvn clean package -DskipTests
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ steps.new_version.outputs.new_version }}
+        name: Release v${{ steps.new_version.outputs.new_version }}
+        body: |
+          ## Changes in v${{ steps.new_version.outputs.new_version }}
+          
+          Auto-generated release from PR merge.
+          
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare/v${{ steps.get_version.outputs.base_version }}...v${{ steps.new_version.outputs.new_version }}
+        files: |
+          target/*.jar
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -30,7 +30,27 @@ build/
 ### VS Code ###
 .vscode/
 
+# Environment and configuration files containing sensitive data
+.env
+.env.local
+.env.development
+.env.production
 src/main/resources/application-dev.properties
 src/main/resources/application-prod.properties
+src/main/resources/application-local.properties
 
+# AWS credentials and other secrets
+aws-credentials
+.aws/
+*.pem
+*.key
+secrets.properties
+
+# Logs
 .DS_Store
+app.log
+logs/
+*.log
+
+# PM2
+.pm2/
