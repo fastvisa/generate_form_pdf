@@ -111,16 +111,25 @@ public class FormsController {
 
 
 
-  @Value("${aws.accessKey}")
+  @Value("${aws.accessKey:}")
   private String accessKey;
-  @Value("${aws.secretKey}")
+  @Value("${aws.secretKey:}")
   private String secretKey;
-  @Value("${aws.s3bucket.name}")
+  @Value("${aws.s3bucket.name:}")
   private String bucketName;
-  @Value("${aws.s3bucket.region}")
+  @Value("${aws.s3bucket.region:us-east-1}")
   private String region;
 
   private void uploadS3(File file, String output_name) {
+    // Skip S3 upload if AWS credentials are not configured (e.g., in tests)
+    if (accessKey == null || accessKey.isEmpty() || 
+        secretKey == null || secretKey.isEmpty() ||
+        bucketName == null || bucketName.isEmpty()) {
+      System.out.println("AWS credentials not configured. Skipping S3 upload.");
+      this.url_download = "file://" + file.getAbsolutePath();
+      return;
+    }
+    
     try {
       AwsS3Service s3Service = new AwsS3Service(accessKey, secretKey, region);
       s3Service.postObject(bucketName, output_name + ".pdf", file);

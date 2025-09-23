@@ -108,7 +108,7 @@ jobs:
 
     - name: Build and test
       run: |
-        mvn clean compile test
+        mvn clean compile test -Dspring.profiles.active=test
 
     - name: Commit version changes
       run: |
