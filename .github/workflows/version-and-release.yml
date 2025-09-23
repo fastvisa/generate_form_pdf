@@ -111,6 +111,8 @@ jobs:
     - name: Create and push tag
       run: |
         NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
         git tag -a "v$NEW_VERSION" -m "Release version $NEW_VERSION"
         git push origin "v$NEW_VERSION"
 
