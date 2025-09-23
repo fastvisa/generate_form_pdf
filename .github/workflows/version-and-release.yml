@@ -115,25 +115,3 @@ jobs:
         git config --local user.name "GitHub Action"
         git tag -a "v$NEW_VERSION" -m "Release version $NEW_VERSION"
         git push origin "v$NEW_VERSION"
-
-    - name: Build JAR for release
-      run: |
-        MAVEN_OPTS="-Dmaven.ext.class.path=" mvn clean package -DskipTests -Dmaven.test.skip=true
-
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: v${{ steps.new_version.outputs.new_version }}
-        name: Release v${{ steps.new_version.outputs.new_version }}
-        body: |
-          ## Changes in v${{ steps.new_version.outputs.new_version }}
-          
-          Auto-generated release from PR merge.
-          
-          **Full Changelog**: https://github.com/${{ github.repository }}/compare/v${{ steps.get_version.outputs.base_version }}...v${{ steps.new_version.outputs.new_version }}
-        files: |
-          target/*.jar
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
