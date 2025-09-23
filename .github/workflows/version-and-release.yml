@@ -118,7 +118,7 @@ jobs:
 
     - name: Build JAR for release
       run: |
-        mvn clean package -DskipTests
+        MAVEN_OPTS="-Dmaven.ext.class.path=" mvn clean package -DskipTests -Dmaven.test.skip=true
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
