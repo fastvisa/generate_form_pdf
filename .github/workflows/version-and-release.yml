@@ -1,15 +1,13 @@
 name: Version Bump and Release
 
 on:
-  push:
-    branches: [ master ]
   pull_request:
     types: [ closed ]
     branches: [ master ]
 
 jobs:
   version-and-release:
-    if: github.event.pull_request.merged == true || github.event_name == 'push'
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     
     permissions:
@@ -50,18 +48,18 @@ jobs:
     - name: Determine version bump type
       id: version_type
       run: |
-        # Check commit messages and PR title for version bump indicators
+        # Check PR title and body for version bump indicators
         PR_TITLE="${{ github.event.pull_request.title }}"
-        COMMIT_MSG="${{ github.event.head_commit.message }}"
+        PR_BODY="${{ github.event.pull_request.body }}"
         
         # Default to patch
         BUMP_TYPE="patch"
         
         # Check for breaking changes or major keywords
-        if echo "$PR_TITLE $COMMIT_MSG" | grep -iE "(breaking|major|BREAKING CHANGE)" > /dev/null; then
+        if echo "$PR_TITLE $PR_BODY" | grep -iE "(breaking|major|BREAKING CHANGE)" > /dev/null; then
           BUMP_TYPE="major"
         # Check for features or minor keywords  
-        elif echo "$PR_TITLE $COMMIT_MSG" | grep -iE "(feat|feature|minor)" > /dev/null; then
+        elif echo "$PR_TITLE $PR_BODY" | grep -iE "(feat|feature|minor)" > /dev/null; then
           BUMP_TYPE="minor"
         fi
         
