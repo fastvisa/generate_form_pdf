@@ -21,11 +21,24 @@ fi
 echo "📦 Building application..."
 mvn clean package -DskipTests
 
-# Check if JAR file exists
-if [ ! -f "target/manipulate-pdf-0.0.1-SNAPSHOT.jar" ]; then
-    echo "❌ JAR file not found. Build failed!"
+# Get the version from pom.xml
+APP_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout 2>/dev/null)
+if [ -z "$APP_VERSION" ]; then
+    echo "❌ Could not determine application version from pom.xml"
     exit 1
 fi
+
+echo "🔍 Application version: $APP_VERSION"
+
+# Check if JAR file exists
+JAR_FILE="target/manipulate-pdf-${APP_VERSION}.jar"
+if [ ! -f "$JAR_FILE" ]; then
+    echo "❌ JAR file not found: $JAR_FILE"
+    echo "   Build may have failed!"
+    exit 1
+fi
+
+echo "✅ JAR file found: $JAR_FILE"
 
 # Create logs directory if it doesn't exist
 mkdir -p logs
