@@ -106,7 +106,7 @@ jobs:
 
     - name: Build and test
       run: |
-        mvn clean compile test -Dspring.profiles.active=test
+        mvn clean compile test -Dspring.profiles.active=test -Dspring-boot-thin-maven-plugin.skip=true
 
     - name: Create and push tag
       run: |
@@ -118,7 +118,7 @@ jobs:
 
     - name: Build JAR for release
       run: |
-        mvn clean package -DskipTests
+        mvn clean package -DskipTests -Dspring-boot-thin-maven-plugin.skip=true
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
