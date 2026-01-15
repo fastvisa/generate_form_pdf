@@ -43,21 +43,22 @@ echo "✅ JAR file found: $JAR_FILE"
 # Create logs directory if it doesn't exist
 mkdir -p logs
 
-# Stop existing PM2 processes
-echo "🛑 Stopping existing processes..."
-pm2 stop manipulate-pdf-api 2>/dev/null || true
-pm2 delete manipulate-pdf-api 2>/dev/null || true
+# Load .env file if it exists
+if [ -f ".env" ]; then
+    echo "📄 Loading .env file..."
+    export $(cat .env | grep -v '^#' | xargs)
+fi
 
 # Check if required environment variables are set
 echo "🔍 Checking environment variables..."
 missing_vars=()
 
-if [ -z "$AWS_ACCESS_KEY" ]; then
-    missing_vars+=("AWS_ACCESS_KEY")
+if [ -z "$AWS_ACCESS_KEY_ID" ]; then
+    missing_vars+=("AWS_ACCESS_KEY_ID")
 fi
 
-if [ -z "$AWS_SECRET_KEY" ]; then
-    missing_vars+=("AWS_SECRET_KEY")
+if [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+    missing_vars+=("AWS_SECRET_ACCESS_KEY")
 fi
 
 if [ -z "$AWS_S3_BUCKET_NAME" ]; then
@@ -69,8 +70,8 @@ if [ ${#missing_vars[@]} -ne 0 ]; then
     printf '   %s\n' "${missing_vars[@]}"
     echo ""
     echo "💡 Set them with:"
-    echo "   export AWS_ACCESS_KEY=your_access_key"
-    echo "   export AWS_SECRET_KEY=your_secret_key" 
+    echo "   export AWS_ACCESS_KEY_ID=your_access_key"
+    echo "   export AWS_SECRET_ACCESS_KEY=your_secret_key"
     echo "   export AWS_S3_BUCKET_NAME=your_bucket_name"
     echo ""
     echo "🔧 Or create a .env file from .env.template"
@@ -79,11 +80,10 @@ fi
 
 echo "✅ All required environment variables are set"
 
-# Load .env file if it exists
-if [ -f ".env" ]; then
-    echo "📄 Loading .env file..."
-    export $(cat .env | grep -v '^#' | xargs)
-fi
+# Stop existing PM2 processes
+echo "🛑 Stopping existing processes..."
+pm2 stop manipulate-pdf-api 2>/dev/null || true
+pm2 delete manipulate-pdf-api 2>/dev/null || true
 
 # Set environment variables for production (if not already set)
 export NODE_ENV=production

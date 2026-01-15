@@ -157,8 +157,8 @@ api
 | Variable | Required | Description | Default |
 |----------|----------|-------------|---------|
 | `SPRING_PROFILES_ACTIVE` | No | Active profile | `dev` |
-| `AWS_ACCESS_KEY` | Yes | AWS Access Key ID | - |
-| `AWS_SECRET_KEY` | Yes | AWS Secret Access Key | - |
+| `AWS_ACCESS_KEY_ID` | Yes | AWS Access Key ID | - |
+| `AWS_SECRET_ACCESS_KEY` | Yes | AWS Secret Access Key | - |
 | `AWS_S3_BUCKET_NAME` | Yes | S3 bucket name | - |
 | `AWS_S3_BUCKET_REGION` | No | S3 bucket region | `us-east-1` |
 | `PORT` | No | Server port | `8080` |
@@ -376,7 +376,7 @@ The current version can always be found in:
 1. **AWS credentials error**
    ```bash
    # Check environment variables are set
-   echo $AWS_ACCESS_KEY
+   echo $AWS_ACCESS_KEY_ID
    
    # Or check configuration file exists
    ls -la src/main/resources/application-dev.properties
@@ -393,6 +393,8 @@ The current version can always be found in:
    # Clean and rebuild
    mvn clean compile
    ```
+   
+   **Note**: If you encounter a spring-boot-thin-maven-plugin error, it has been fixed in the latest version of the pom.xml. The problematic thin-maven-plugin has been removed.
 
 4. **S3 bucket access denied**
    ```
