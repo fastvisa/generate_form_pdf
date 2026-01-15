@@ -95,8 +95,16 @@ jobs:
         esac
         
         NEW_VERSION="$major.$minor.$patch"
+        
+        # Check if tag already exists and increment if needed
+        while git rev-parse --verify "refs/tags/v$NEW_VERSION" >/dev/null 2>&1; do
+          echo "Tag v$NEW_VERSION already exists, incrementing patch version..."
+          patch=$((patch + 1))
+          NEW_VERSION="$major.$minor.$patch"
+        done
+        
         echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-        echo "New version: $NEW_VERSION"
+        echo "Final version: $NEW_VERSION"
 
     - name: Update pom.xml version
       run: |
@@ -113,5 +121,12 @@ jobs:
         NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
+        
+        # Double check that the tag doesn't exist before creating it
+        if git rev-parse --verify "refs/tags/v$NEW_VERSION" >/dev/null 2>&1; then
+          echo "Error: Tag v$NEW_VERSION already exists. This should not happen."
+          exit 1
+        fi
+        
         git tag -a "v$NEW_VERSION" -m "Release version $NEW_VERSION"
         git push origin "v$NEW_VERSION"
