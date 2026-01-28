@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Script to set the project version from the latest git tag
-# Usage: ./scripts/set-version-from-tag.sh [--force]
+# Usage: ./scripts/set-version-from-tag.sh [--force] [--increment-if-needed]
 
 set -e
 
@@ -41,11 +41,19 @@ if [ ! -f "pom.xml" ]; then
     exit 1
 fi
 
-# Check for --force flag
+# Check for flags
 FORCE=false
-if [ "$1" == "--force" ]; then
-    FORCE=true
-fi
+INCREMENT_IF_NEEDED=false
+for arg in "$@"; do
+  case $arg in
+    --force)
+      FORCE=true
+      ;;
+    --increment-if-needed)
+      INCREMENT_IF_NEEDED=true
+      ;;
+  esac
+done
 
 # Get the latest tag
 print_status "Fetching latest git tag..."
@@ -81,16 +89,86 @@ fi
 
 print_status "Current version in pom.xml: $CURRENT_VERSION"
 
+# Function to compare version numbers
+# Returns: 0 if equal, 1 if $1 > $2, 2 if $1 < $2
+compare_versions() {
+    if [[ "$1" == "$2" ]]; then
+        return 0
+    fi
+    local IFS=.
+    local i ver1=($1) ver2=($2)
+    # Fill empty fields with zeros
+    for ((i=${#ver1[@]}; i<${#ver2[@]}; i++)); do
+        ver1[i]=0
+    done
+    for ((i=0; i<${#ver1[@]}; i++)); do
+        if [[ -z ${ver2[i]} ]]; then
+            ver2[i]=0
+        fi
+        if ((10#${ver1[i]} > 10#${ver2[i]})); then
+            return 1
+        fi
+        if ((10#${ver1[i]} < 10#${ver2[i]})); then
+            return 2
+        fi
+    done
+    return 0
+}
+
 # Check if versions are the same
 if [ "$CURRENT_VERSION" == "$VERSION" ] && [ "$FORCE" == "false" ]; then
     print_success "Version is already set to $VERSION. No changes needed."
     exit 0
 fi
 
+# If current version is greater than latest tag and --increment-if-needed is set, increment from latest tag
+if [ "$INCREMENT_IF_NEEDED" == "true" ]; then
+    compare_versions "$CURRENT_VERSION" "$VERSION"
+    COMPARE_RESULT=$?
+    
+    if [ $COMPARE_RESULT -eq 1 ]; then
+        print_status "Current version ($CURRENT_VERSION) is greater than latest tag ($VERSION)"
+        print_status "Incrementing version from latest tag..."
+        
+        # Parse version numbers
+        IFS='.' read -r -a version_parts <<< "$VERSION"
+        major=${version_parts[0]}
+        minor=${version_parts[1]}
+        patch=${version_parts[2]}
+        
+        # Increment patch version
+        patch=$((patch + 1))
+        VERSION="$major.$minor.$patch"
+        
+        print_status "New version: $VERSION"
+        
+        # Check if the new version tag already exists
+        while git rev-parse --verify "refs/tags/v$VERSION" >/dev/null 2>&1; do
+            print_status "Tag v$VERSION already exists, incrementing patch version..."
+            patch=$((patch + 1))
+            VERSION="$major.$minor.$patch"
+            print_status "New version: $VERSION"
+        done
+    elif [ $COMPARE_RESULT -eq 2 ]; then
+        # Current version is less than latest tag - this is an error
+        print_error "Current version ($CURRENT_VERSION) is less than latest tag ($VERSION)"
+        print_error "This indicates a version mismatch. Please update the pom.xml version to be greater than or equal to the latest tag."
+        print_error "Suggested version: $VERSION (or higher)"
+        exit 1
+    fi
+fi
+
 # Update pom.xml version
 print_status "Updating pom.xml version to $VERSION..."
 ./mvnw versions:set -DnewVersion=$VERSION -q
 ./mvnw versions:commit -q
+
+# Verify the update was successful
+UPDATED_VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout 2>/dev/null)
+if [ "$UPDATED_VERSION" != "$VERSION" ]; then
+    print_error "Failed to update version. Expected: $VERSION, Got: $UPDATED_VERSION"
+    exit 1
+fi
 
 print_success "Version successfully updated to $VERSION"
 print_status "You can now build the project with: mvn clean package"
