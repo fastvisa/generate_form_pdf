@@ -5,7 +5,7 @@ A Spring Boot REST API for manipulating PDF forms and generating receipts using 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Java 8+
+- Java 11
 - Maven 3.6+
 - Node.js and npm (for PM2 deployment)
 - AWS S3 bucket and credentials
@@ -42,9 +42,9 @@ A Spring Boot REST API for manipulating PDF forms and generating receipts using 
 ### Server Prerequisites
 
 ```bash
-# Install Java 21
+# Install Java 11
 sudo apt update
-sudo apt install -y openjdk-21-jdk
+sudo apt install -y openjdk-11-jdk
 
 # Install Maven
 sudo apt install -y maven
