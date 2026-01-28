@@ -10,5 +10,9 @@ fi
 
 export SERVER_PORT=8080
 export SPRING_PROFILES_ACTIVE=prod
+
+# Build the JAR first
+mvn clean package -DskipTests
+
 # Run the JAR file directly instead of using mvn spring-boot:run for better performance
-mvn spring-boot:run -Dspring-boot.run.arguments="--server.port=8080" -Dspring.profiles.active=prod 
+java -jar target/manipulate-pdf-1.0.0-SNAPSHOT.jar --server.port=8080 --spring.profiles.active=prod

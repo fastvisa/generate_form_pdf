@@ -13,6 +13,7 @@ import java.nio.file.StandardCopyOption;
 import java.sql.Timestamp;
 import java.text.ParseException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -29,11 +30,14 @@ import com.itextpdf.kernel.colors.ColorConstants;
 import com.itextpdf.kernel.font.PdfFont;
 import com.itextpdf.kernel.font.PdfFontFactory;
 import com.itextpdf.kernel.geom.Rectangle;
+import com.itextpdf.kernel.pdf.PdfArray;
 import com.itextpdf.kernel.pdf.PdfDictionary;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfName;
+import com.itextpdf.kernel.pdf.PdfObject;
 import com.itextpdf.kernel.pdf.PdfPage;
 import com.itextpdf.kernel.pdf.PdfReader;
+import com.itextpdf.kernel.pdf.PdfString;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
 import com.itextpdf.kernel.utils.PdfMerger;
@@ -214,7 +218,23 @@ public class FormService {
 
     PdfAcroForm form = PdfAcroForm.getAcroForm(pdf, true);
 
-    Map<String, PdfFormField> fields = form.getFormFields();
+    // In iText 9.x, we need to iterate through the form fields differently
+    Map<String, PdfFormField> fields = new HashMap<>();
+    PdfDictionary acroFormDict = form.getPdfObject();
+    if (acroFormDict != null) {
+      PdfDictionary fieldsDict = acroFormDict.getAsDictionary(PdfName.Fields);
+      if (fieldsDict != null) {
+        for (PdfName key : fieldsDict.keySet()) {
+          PdfObject fieldObj = fieldsDict.get(key);
+          if (fieldObj instanceof PdfDictionary) {
+            PdfFormField field = PdfFormField.makeFormField((PdfDictionary) fieldObj, pdf);
+            String fieldName = key.getValue();
+            fields.put(fieldName, field);
+          }
+        }
+      }
+    }
+    
     Iterator<?> i = form_array.iterator();
     while (i.hasNext()) {
       JSONObject innerObj = (JSONObject) i.next();
@@ -347,23 +367,16 @@ public class FormService {
     Rectangle fieldsRect,
     PdfFont font
   ) throws IOException {
-    PdfTextFormField newField = PdfTextFormField.createText(pdf, fieldsRect, name, value);
+    // Skip creating new field and just use canvas for multiline text
     form.removeField(name);
-    if (fieldsRect.getWidth() < 200 && fieldsRect.getHeight() < 30) {
-      form.addField(newField, page);
-      form.getField(name)
-      .setFont(font)
-      .setFontSize((float) dynamicFontSize);
+    if (pdf_template.toLowerCase().contains("n-648") && fieldsRect.getHeight() > 140) {
+      p.setFixedLeading((float) 15).setPaddingTop((float) -5);
+    } else if (fieldsRect.getHeight() > 430 && fieldsRect.getHeight() < 660) {
+      p.setFixedLeading((float) 18).setPaddingTop((float) -6.5);
     } else {
-      if (pdf_template.toLowerCase().contains("n-648") && fieldsRect.getHeight() > 140) {
-        p.setFixedLeading((float) 15).setPaddingTop((float) -5);
-      } else if (fieldsRect.getHeight() > 430 && fieldsRect.getHeight() < 660) {
-        p.setFixedLeading((float) 18).setPaddingTop((float) -6.5);
-      } else {
-        p.setFixedLeading((float) 18).setPaddingTop(-5);
-      }
-      addTextToCanvas(page, pdf, fieldsRect, p);
+      p.setFixedLeading((float) 18).setPaddingTop(-5);
     }
+    addTextToCanvas(page, pdf, fieldsRect, p);
   }
 
   private void fillStructureInputMultiline(
@@ -435,11 +448,8 @@ public class FormService {
       p.setPaddingLeft(2);
       addTextToCanvas(page, pdf, fieldsRect, p);
     } else {
-      form.getField(name)
-      .setFont(font)
-      .setFontSize((float) dynamicFontSize)
-      .setColor(ColorConstants.BLACK)
-      .setValue(value);
+      PdfTextFormField field = (PdfTextFormField) form.getField(name);
+      field.setValue(value);
     }
   }
 
@@ -477,7 +487,7 @@ public class FormService {
     float rectHeight = fieldsRect.getHeight();
     fontSize = Math.min(fontSize, rectHeight / fontHeight * FontProgram.UNITS_NORMALIZATION);
     float rectWidth = fieldsRect.getWidth();
-    float stringWidth = font.getWidth(value, 1);
+    float stringWidth = font.getWidth(value);
     fontSize = Math.min(fontSize, (rectWidth - 3) / stringWidth);
     return fontSize;
   }
