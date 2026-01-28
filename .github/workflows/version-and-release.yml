@@ -45,6 +45,21 @@ jobs:
         BASE_VERSION=$(echo $CURRENT_VERSION | sed 's/-SNAPSHOT//')
         echo "base_version=$BASE_VERSION" >> $GITHUB_OUTPUT
 
+    - name: Get latest tag version
+      id: get_tag_version
+      run: |
+        LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+        
+        if [ -z "$LATEST_TAG" ]; then
+          echo "No tags found, using base version from pom.xml"
+          echo "tag_version=${{ steps.get_version.outputs.base_version }}" >> $GITHUB_OUTPUT
+        else
+          # Remove 'v' prefix if present
+          TAG_VERSION=$(echo "$LATEST_TAG" | sed 's/^v//')
+          echo "Latest tag: $LATEST_TAG (version: $TAG_VERSION)"
+          echo "tag_version=$TAG_VERSION" >> $GITHUB_OUTPUT
+        fi
+
     - name: Determine version bump type
       id: version_type
       run: |
@@ -69,8 +84,16 @@ jobs:
     - name: Calculate new version
       id: new_version
       run: |
-        BASE_VERSION="${{ steps.get_version.outputs.base_version }}"
+        # Use the tag version if available, otherwise use base version from pom.xml
+        if [ -n "${{ steps.get_tag_version.outputs.tag_version }}" ]; then
+          BASE_VERSION="${{ steps.get_tag_version.outputs.tag_version }}"
+        else
+          BASE_VERSION="${{ steps.get_version.outputs.base_version }}"
+        fi
+        
         BUMP_TYPE="${{ steps.version_type.outputs.bump_type }}"
+        
+        echo "Base version for calculation: $BASE_VERSION"
         
         # Parse version numbers
         IFS='.' read -r -a version_parts <<< "$BASE_VERSION"
@@ -114,8 +137,8 @@ jobs:
 
     - name: Set version from latest tag (verify consistency)
       run: |
-        # Verify the version matches the latest tag
-        ./scripts/set-version-from-tag.sh --force
+        # Verify the version matches the latest tag, or increment if needed
+        ./scripts/set-version-from-tag.sh --force --increment-if-needed
 
     - name: Build and test
       run: |
