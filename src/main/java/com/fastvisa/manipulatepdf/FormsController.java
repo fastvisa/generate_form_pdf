@@ -111,13 +111,13 @@ public class FormsController {
 
 
 
-  @Value("${aws.accessKey:}")
+  @Value("${AWS_ACCESS_KEY_ID:}")
   private String accessKey;
-  @Value("${aws.secretKey:}")
+  @Value("${AWS_SECRET_ACCESS_KEY:}")
   private String secretKey;
-  @Value("${aws.s3bucket.name:}")
+  @Value("${AWS_S3_BUCKET_NAME:}")
   private String bucketName;
-  @Value("${aws.s3bucket.region:us-east-1}")
+  @Value("${AWS_S3_BUCKET_REGION:us-east-1}")
   private String region;
 
   private void uploadS3(File file, String output_name) {
