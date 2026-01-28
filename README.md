@@ -5,7 +5,7 @@ A Spring Boot REST API for manipulating PDF forms and generating receipts using 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Java 21+
+- Java 8+
 - Maven 3.6+
 - Node.js and npm (for PM2 deployment)
 - AWS S3 bucket and credentials
@@ -13,29 +13,29 @@ A Spring Boot REST API for manipulating PDF forms and generating receipts using 
 ### Development Setup
 
 1. **Clone the repository**
-   ```bash
-   git clone https://github.com/fastvisa/generate_form_pdf.git
-   cd generate_form_pdf
-   ```
+    ```bash
+    git clone https://github.com/fastvisa/generate_form_pdf.git
+    cd generate_form_pdf
+    ```
 
-2. **Configure for development**
-   ```bash
-   # Create development configuration from example
-   cp src/main/resources/application-dev.properties.example src/main/resources/application-dev.properties
-   
-   # Edit with your AWS credentials
-   nano src/main/resources/application-dev.properties
-   ```
+2. **Configure environment**
+    ```bash
+    # Create environment file from template
+    cp .env.template .env
+    
+    # Edit with your AWS credentials
+    nano .env
+    ```
 
 3. **Run the application**
-   ```bash
-   mvn spring-boot:run
-   ```
+    ```bash
+    mvn spring-boot:run
+    ```
 
 4. **Test the health endpoint**
-   ```bash
-   curl http://localhost:8080/health
-   ```
+    ```bash
+    curl http://localhost:8080/health
+    ```
 
 ## 🚀 Production Deployment
 
@@ -151,12 +151,13 @@ All POST endpoints return JSON with the processed file URL:
 ## ⚙️ Configuration
 
 **⚠️ Security Notice**: Never commit AWS credentials or other sensitive data to version control.
-api
+
 ### Environment Variables
+
+All configuration is loaded from the `.env` file. No dev/prod profiles are used.
 
 | Variable | Required | Description | Default |
 |----------|----------|-------------|---------|
-| `SPRING_PROFILES_ACTIVE` | No | Active profile | `dev` |
 | `AWS_ACCESS_KEY_ID` | Yes | AWS Access Key ID | - |
 | `AWS_SECRET_ACCESS_KEY` | Yes | AWS Secret Access Key | - |
 | `AWS_S3_BUCKET_NAME` | Yes | S3 bucket name | - |
@@ -170,10 +171,6 @@ api
 ### Configuration Files
 
 - `application.properties` - Base configuration (tracked in git)
-- `application-dev.properties.example` - Development template (tracked in git)
-- `application-prod.properties.example` - Production template (tracked in git)
-- `application-dev.properties` - Development config with secrets (git-ignored)
-- `application-prod.properties` - Production config (git-ignored)
 - `.env.template` - Environment variables template (tracked in git)
 - `.env` - Actual environment variables (git-ignored)
 
@@ -240,8 +237,8 @@ mvn clean package
 # Run tests
 mvn test
 
-# Run with specific profile
-mvn spring-boot:run -Dspring-boot.run.profiles=dev
+# Run the application
+mvn spring-boot:run
 ```
 
 ### PM2 Management
@@ -374,33 +371,31 @@ The current version can always be found in:
 ### Common Issues
 
 1. **AWS credentials error**
-   ```bash
-   # Check environment variables are set
-   echo $AWS_ACCESS_KEY_ID
-   
-   # Or check configuration file exists
-   ls -la src/main/resources/application-dev.properties
-   ```
+    ```bash
+    # Check environment variables are set
+    echo $AWS_ACCESS_KEY_ID
+    
+    # Or check .env file exists
+    cat .env
+    ```
 
 2. **Port already in use**
-   ```bash
-   # Change port in .env or environment variables
-   export PORT=8081
-   ```
+    ```bash
+    # Change port in .env
+    nano .env  # Set PORT=8081
+    ```
 
 3. **Maven build fails**
-   ```bash
-   # Clean and rebuild
-   mvn clean compile
-   ```
-   
-   **Note**: If you encounter a spring-boot-thin-maven-plugin error, it has been fixed in the latest version of the pom.xml. The problematic thin-maven-plugin has been removed.
+    ```bash
+    # Clean and rebuild
+    mvn clean compile
+    ```
 
 4. **S3 bucket access denied**
-   ```
-   ERROR: Access Denied (Service: Amazon S3; Status Code: 403)
-   ```
-   **Solution**: Check IAM permissions and bucket name configuration.
+    ```
+    ERROR: Access Denied (Service: Amazon S3; Status Code: 403)
+    ```
+    **Solution**: Check IAM permissions and bucket name configuration.
 
 ## 📄 License
 
