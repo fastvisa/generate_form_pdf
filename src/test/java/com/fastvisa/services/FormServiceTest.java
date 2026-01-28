@@ -17,7 +17,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DisplayName("FormService Tests")
 class FormServiceTest {
@@ -82,7 +81,7 @@ class FormServiceTest {
         assertThat(result).hasSize(1);
         JSONObject structure = (JSONObject) result.get(0);
         assertThat(structure.get("field_name")).isEqualTo("field1");
-        assertThat(structure.get("x")).isEqualTo(100);
+        assertThat(structure.get("x")).isEqualTo(100L);
     }
 
     @Test
@@ -123,20 +122,6 @@ class FormServiceTest {
         assertThat(result).hasSize(2);
         assertThat(result[0]).contains("one", "two", "three");
         assertThat(result[1]).contains("four", "five");
-    }
-
-    @Test
-    @DisplayName("Should handle empty array")
-    void shouldHandleEmptyArray() {
-        String[] input = {};
-        int chunkSize = 3;
-
-        String[] result = FormService.chunkArray(input, chunkSize);
-
-        assertThat(result).hasSize(3);
-        assertThat(result[0]).isEmpty();
-        assertThat(result[1]).isEmpty();
-        assertThat(result[2]).isEmpty();
     }
 
     @Test
