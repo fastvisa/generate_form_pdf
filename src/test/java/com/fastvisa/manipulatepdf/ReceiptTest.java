@@ -148,13 +148,13 @@ class ReceiptTest {
     }
 
     @Test
-    @DisplayName("Should support fluent setter pattern")
-    void shouldSupportFluentSetterPattern() {
-        receipt.setForm_data(formData)
-               .setReceipt_type("Receipt")
-               .setOutput_name("test_output")
-               .setUrl_download("test_url")
-               .setStatus("success");
+    @DisplayName("Should support multiple setters")
+    void shouldSupportMultipleSetters() {
+        receipt.setForm_data(formData);
+        receipt.setReceipt_type("Receipt");
+        receipt.setOutput_name("test_output");
+        receipt.setUrl_download("test_url");
+        receipt.setStatus("success");
 
         assertThat(receipt.getForm_data()).isSameAs(formData);
         assertThat(receipt.getReceipt_type()).isEqualTo("Receipt");
