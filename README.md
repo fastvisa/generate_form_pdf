@@ -399,4 +399,6 @@ The current version can always be found in:
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the AGPL-3.0 License - see the LICENSE file for details.
+
+This project uses iText, which is licensed under the AGPLv3. If you use this software in a way that provides it to users over a network, you must provide the source code of your application to those users.
