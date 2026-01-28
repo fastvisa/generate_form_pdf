@@ -135,10 +135,18 @@ jobs:
         mvn versions:set -DnewVersion=$NEW_VERSION
         mvn versions:commit
 
-    - name: Set version from latest tag (verify consistency)
+    - name: Verify version update
       run: |
-        # Verify the version matches the latest tag, or increment if needed
-        ./scripts/set-version-from-tag.sh --force --increment-if-needed
+        # Verify the version was updated correctly
+        UPDATED_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+        EXPECTED_VERSION="${{ steps.new_version.outputs.new_version }}"
+        echo "Updated version: $UPDATED_VERSION"
+        echo "Expected version: $EXPECTED_VERSION"
+        if [ "$UPDATED_VERSION" != "$EXPECTED_VERSION" ]; then
+          echo "Error: Version mismatch!"
+          exit 1
+        fi
+        echo "Version verified successfully."
 
     - name: Build and test
       run: |
