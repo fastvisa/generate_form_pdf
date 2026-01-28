@@ -65,7 +65,7 @@ jobs:
     - name: Check test results
       if: always()
       run: |
-        if [ -f target/surefire-reports/*.xml ]; then
+        if ls target/surefire-reports/*.xml > /dev/null 2>&1; then
           echo "Test reports found"
         else
           echo "No test reports found"
