@@ -5,7 +5,7 @@ A Spring Boot REST API for manipulating PDF forms and generating receipts using 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Java 8+
+- Java 11
 - Maven 3.6+
 - Node.js and npm (for PM2 deployment)
 - AWS S3 bucket and credentials
@@ -42,9 +42,9 @@ A Spring Boot REST API for manipulating PDF forms and generating receipts using 
 ### Server Prerequisites
 
 ```bash
-# Install Java 21
+# Install Java 11
 sudo apt update
-sudo apt install -y openjdk-21-jdk
+sudo apt install -y openjdk-11-jdk
 
 # Install Maven
 sudo apt install -y maven
@@ -281,9 +281,20 @@ curl http://localhost:8080/health
 
 ## 📦 Automated Versioning System
 
-This project uses an automated versioning system that automatically bumps the version and creates releases when PRs are merged to the master branch.
+This project uses an automated versioning system that ensures the build version always matches the latest released git tag.
 
 ### How It Works
+
+#### Tag-Based Version Matching
+
+The build process automatically sets the project version to match the latest git tag:
+
+1. **Fetches the latest tag** from git (e.g., `v1.2.3`)
+2. **Extracts the version** number (removes 'v' prefix)
+3. **Updates pom.xml** with the extracted version
+4. **Builds the application** with the matching version
+
+This ensures consistency between git tags and the application version in all builds.
 
 #### Automatic Versioning (GitHub Actions)
 
@@ -291,7 +302,7 @@ When a PR is merged to the `master` branch, a GitHub Action workflow automatical
 
 1. **Analyzes the changes** to determine the version bump type:
    - **Major bump** (X.0.0): PR title/commits contain "breaking", "major", or "BREAKING CHANGE"
-   - **Minor bump** (X.Y.0): PR title/commits contain "feat", "feature", or "minor"  
+   - **Minor bump** (X.Y.0): PR title/commits contain "feat", "feature", or "minor"
    - **Patch bump** (X.Y.Z): Default for all other changes
 
 2. **Updates the version**:
@@ -303,10 +314,22 @@ When a PR is merged to the `master` branch, a GitHub Action workflow automatical
    - Commits the version change
    - Creates a git tag (e.g., `v1.2.3`)
    - Pushes the changes and tag
+   - Verifies version consistency
    - Builds the project
-   - Creates a GitHub release with the JAR file
 
-#### Manual Versioning (Local Script)
+#### Manual Version Setting
+
+You can manually set the version from the latest tag:
+
+```bash
+# Set version from latest tag
+./scripts/set-version-from-tag.sh
+
+# Force update even if versions match
+./scripts/set-version-from-tag.sh --force
+```
+
+#### Manual Version Bumping
 
 You can also bump versions manually using the provided script:
 
@@ -317,7 +340,7 @@ You can also bump versions manually using the provided script:
 # Minor bump (1.0.0 -> 1.1.0)
 ./scripts/bump-version.sh minor
 
-# Major bump (1.0.0 -> 2.0.0)  
+# Major bump (1.0.0 -> 2.0.0)
 ./scripts/bump-version.sh major
 ```
 
@@ -347,7 +370,7 @@ To control automatic version bumping, use these keywords in your PR title or com
 **PR Titles that trigger different version bumps:**
 
 - `"Fix login bug"` → Patch bump (1.0.0 → 1.0.1)
-- `"feat: Add new user dashboard"` → Minor bump (1.0.0 → 1.1.0)  
+- `"feat: Add new user dashboard"` → Minor bump (1.0.0 → 1.1.0)
 - `"BREAKING CHANGE: Redesign API endpoints"` → Major bump (1.0.0 → 2.0.0)
 
 **Current Version**
@@ -356,6 +379,15 @@ The current version can always be found in:
 - `pom.xml` - The project version
 - Git tags - All released versions
 - GitHub releases - Published versions with artifacts
+
+### Build Integration
+
+The version matching system is integrated into all build processes:
+
+- **[`deploy.sh`](deploy.sh)** - Production deployment
+- **[`start-app.sh`](start-app.sh)** - Local development
+- **[`entrypoint.sh`](entrypoint.sh)** - Docker containers
+- **[`.github/workflows/version-and-release.yml`](.github/workflows/version-and-release.yml)** - CI/CD
 
 ## 🤝 Contributing
 
@@ -399,4 +431,6 @@ The current version can always be found in:
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the AGPL-3.0 License - see the LICENSE file for details.
+
+This project uses iText, which is licensed under the AGPLv3. If you use this software in a way that provides it to users over a network, you must provide the source code of your application to those users.

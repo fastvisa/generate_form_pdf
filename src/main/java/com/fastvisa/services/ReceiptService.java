@@ -4,7 +4,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-import com.itextpdf.html2pdf.ConverterProperties;
 import com.itextpdf.html2pdf.HtmlConverter;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,8 +43,7 @@ public class ReceiptService {
         break;
     }
 
-    ConverterProperties converterProperties = new ConverterProperties();
-    HtmlConverter.convertToPdf(html, file, converterProperties);
+    HtmlConverter.convertToPdf(html, file);
   }
 
   public ITemplateResolver htmlTemplateResolver(){

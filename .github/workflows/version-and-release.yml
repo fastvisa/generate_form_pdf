@@ -112,6 +112,11 @@ jobs:
         mvn versions:set -DnewVersion=$NEW_VERSION
         mvn versions:commit
 
+    - name: Set version from latest tag (verify consistency)
+      run: |
+        # Verify the version matches the latest tag
+        ./scripts/set-version-from-tag.sh --force
+
     - name: Build and test
       run: |
         mvn clean compile test -Dspring.profiles.active=test -Dspring-boot-thin-maven-plugin.skip=true

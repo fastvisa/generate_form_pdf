@@ -17,6 +17,10 @@ if ! command -v java &> /dev/null; then
     exit 1
 fi
 
+# Set version from latest git tag before building
+echo "🔖 Setting version from latest git tag..."
+./scripts/set-version-from-tag.sh
+
 # Build the application
 echo "📦 Building application..."
 mvn clean package -DskipTests
