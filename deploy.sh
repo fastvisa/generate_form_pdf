@@ -65,6 +65,11 @@ if [ -z "$AWS_S3_BUCKET_NAME" ]; then
     missing_vars+=("AWS_S3_BUCKET_NAME")
 fi
 
+# Also check for AWS_S3_BUCKET_REGION (optional, has default)
+if [ -z "$AWS_S3_BUCKET_REGION" ]; then
+    echo "⚠️  Warning: AWS_S3_BUCKET_REGION not set, will use default: us-east-1"
+fi
+
 if [ ${#missing_vars[@]} -ne 0 ]; then
     echo "❌ Missing required environment variables:"
     printf '   %s\n' "${missing_vars[@]}"
