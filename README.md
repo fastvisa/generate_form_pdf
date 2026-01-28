@@ -241,6 +241,63 @@ mvn test
 mvn spring-boot:run
 ```
 
+### Testing
+
+This project includes comprehensive unit tests that run automatically on pull requests.
+
+**Quick test commands:**
+
+```bash
+# Run all tests
+mvn clean test
+
+# Run tests with specific profile
+mvn test -Dspring.profiles.active=test
+
+# Run specific test class
+mvn test -Dtest=FormServiceTest
+
+# Run specific test method
+mvn test -Dtest=FormServiceTest#shouldParseFormDataFromJsonString
+
+# Generate test coverage report
+mvn clean test jacoco:report
+```
+
+**Test Coverage:**
+
+The test suite includes 73 unit tests covering:
+- **Model Classes**: Form, Receipt
+- **Service Classes**: FormService, ReceiptService, AwsS3Service
+- **Controller**: FormsController (REST API endpoints)
+
+**CI/CD Test Validation:**
+
+Tests automatically run on every pull request to `master`, `main`, or `develop` branches via [`.github/workflows/test-validation.yml`](.github/workflows/test-validation.yml). The workflow:
+- Executes all unit tests using Maven
+- Generates and uploads test reports as artifacts
+- Publishes test results to PR checks
+- **Fails the workflow if any tests fail**
+
+**Configuring Branch Protection Rules:**
+
+To require passing tests before merging PRs:
+
+1. Go to your repository on GitHub
+2. Click **Settings** → **Branches**
+3. Click **Add branch protection rule** or edit existing rule for `master`/`main`
+4. Configure:
+   - ✅ **Require status checks to pass before merging**
+   - ✅ **Require branches to be up to date before merging**
+   - Select: `Run Unit Tests` as required status check
+5. Click **Create** or **Save changes**
+
+**Test Results:**
+
+- **Success**: All tests pass, PR can be merged (if other requirements are met)
+- **Failure**: Tests fail, PR cannot be merged until tests are fixed
+- Test results are displayed in the PR checks section and available as downloadable artifacts
+
 ### PM2 Management
 
 ```bash
@@ -393,10 +450,13 @@ The version matching system is integrated into all build processes:
 
 1. Ensure no sensitive data is committed
 2. Run security check: `./security-check.sh`
-3. Test all configurations work
-4. Follow existing code style
-5. Update documentation as needed
-6. Use appropriate PR titles for version bumping (see versioning section above)
+3. Run all tests: `mvn clean test`
+4. Test all configurations work
+5. Follow existing code style
+6. Update documentation as needed
+7. Use appropriate PR titles for version bumping (see versioning section above)
+
+**Note**: All pull requests must pass automated tests before they can be merged. See the **Testing** section above for details on running tests and configuring branch protection rules.
 
 ## 🔧 Troubleshooting
 
