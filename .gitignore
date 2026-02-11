@@ -54,3 +54,8 @@ logs/
 
 # PM2
 .pm2/
+
+# Maven Versions Plugin backup files
+pom.xml.versionsBackup
+pom.xml.tag
+pom.xml.releaseBackup

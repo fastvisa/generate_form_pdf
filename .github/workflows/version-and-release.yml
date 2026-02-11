@@ -129,6 +129,14 @@ jobs:
         echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
         echo "Final version: $NEW_VERSION"
 
+    - name: Update pom.xml version
+      run: |
+        NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
+        # Remove any existing backup files from previous runs
+        rm -f pom.xml.versionsBackup
+        mvn versions:set -DnewVersion=$NEW_VERSION
+        mvn versions:commit
+
     - name: Verify version update
       run: |
         # Verify the version was updated correctly
