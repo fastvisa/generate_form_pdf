@@ -1,7 +1,6 @@
 package com.fastvisa.services;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,15 +12,14 @@ import java.nio.file.StandardCopyOption;
 import java.sql.Timestamp;
 import java.text.ParseException;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.itextpdf.forms.PdfAcroForm;
+import com.itextpdf.forms.fields.PdfButtonFormField;
 import com.itextpdf.forms.fields.PdfFormField;
 import com.itextpdf.forms.fields.PdfTextFormField;
 import com.itextpdf.io.font.FontProgram;
@@ -30,14 +28,11 @@ import com.itextpdf.kernel.colors.ColorConstants;
 import com.itextpdf.kernel.font.PdfFont;
 import com.itextpdf.kernel.font.PdfFontFactory;
 import com.itextpdf.kernel.geom.Rectangle;
-import com.itextpdf.kernel.pdf.PdfArray;
 import com.itextpdf.kernel.pdf.PdfDictionary;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfName;
-import com.itextpdf.kernel.pdf.PdfObject;
 import com.itextpdf.kernel.pdf.PdfPage;
 import com.itextpdf.kernel.pdf.PdfReader;
-import com.itextpdf.kernel.pdf.PdfString;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
 import com.itextpdf.kernel.utils.PdfMerger;
@@ -49,7 +44,6 @@ import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Table;
 import com.itextpdf.layout.element.Text;
 import com.itextpdf.layout.properties.VerticalAlignment;
-
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -218,57 +212,59 @@ public class FormService {
 
     PdfAcroForm form = PdfAcroForm.getAcroForm(pdf, true);
 
-    // In iText 9.x, we need to iterate through the form fields differently
-    Map<String, PdfFormField> fields = new HashMap<>();
-    PdfDictionary acroFormDict = form.getPdfObject();
-    if (acroFormDict != null) {
-      PdfDictionary fieldsDict = acroFormDict.getAsDictionary(PdfName.Fields);
-      if (fieldsDict != null) {
-        for (PdfName key : fieldsDict.keySet()) {
-          PdfObject fieldObj = fieldsDict.get(key);
-          if (fieldObj instanceof PdfDictionary) {
-            PdfFormField field = PdfFormField.makeFormField((PdfDictionary) fieldObj, pdf);
-            String fieldName = key.getValue();
-            fields.put(fieldName, field);
-          }
-        }
-      }
-    }
-    
     Iterator<?> i = form_array.iterator();
     while (i.hasNext()) {
       JSONObject innerObj = (JSONObject) i.next();
-      String name = innerObj.get("name").toString();
+      Object nameObj = innerObj.get("name");
+      if (nameObj == null) {
+        continue;
+      }
+      String name = nameObj.toString();
       Object valueObject = innerObj.get("value");
       String value = valueObject == null ? "" : valueObject.toString();
 
-      if (fields.get(name) != null) {
-        PdfPage page = fields.get(name).getWidgets().get(0).getPage();
+      PdfFormField field = form.getField(name);
+      if (field != null) {
+        PdfPage page = field.getWidgets().get(0).getPage();
         Text text = new Text(value);
         PdfFont font = PdfFontFactory.createFont(StandardFonts.COURIER);
         text.setFont(font).setFontSize((float) 10);
         Paragraph p = new Paragraph(text).setFontColor(ColorConstants.BLACK);
 
-        Rectangle fieldsRectInput = fields.get(name).getWidgets().get(0).getRectangle().toRectangle();
+        Rectangle fieldsRectInput = field.getWidgets().get(0).getRectangle().toRectangle();
         float inputDynamicFontSize = getDynamicFontSize(value, fieldsRectInput, font);
-        boolean inputIsMultiline = form.getField(name).isMultiline();
+        boolean inputIsMultiline = field.isMultiline();
 
         JSONArray structure = returnSearch(structure_input_array, name);
 
         if (!structure.isEmpty()) {
           JSONObject inputInnerObj = (JSONObject) structure.get(0);
-          Float x = new Float(inputInnerObj.get("x").toString()) * (float) 0.75 * (float) 0.87;
-          Float y = new Float(inputInnerObj.get("y").toString()) * (float) 0.75 * (float) 0.87;
-          Float width = new Float(inputInnerObj.get("width").toString()) * (float) 0.75 * (float) 0.87;
-          Float height = new Float(inputInnerObj.get("height").toString()) * (float) 0.75 * (float) 0.87;
+          Object xObj = inputInnerObj.get("x");
+          Object yObj = inputInnerObj.get("y");
+          Object widthObj = inputInnerObj.get("width");
+          Object heightObj = inputInnerObj.get("height");
+          Object multilineObj = inputInnerObj.get("multiline");
+          Object rowObj = inputInnerObj.get("row");
+          
+          if (xObj == null || yObj == null || widthObj == null || heightObj == null || multilineObj == null) {
+            continue;
+          }
+          
+          Float x = Float.valueOf(xObj.toString()) * 0.75f * 0.87f;
+          Float y = Float.valueOf(yObj.toString()) * 0.75f * 0.87f;
+          Float width = Float.valueOf(widthObj.toString()) * 0.75f * 0.87f;
+          Float height = Float.valueOf(heightObj.toString()) * 0.75f * 0.87f;
           Rectangle fieldsRect = new Rectangle(x, y, width, height);
           float dynamicFontSize = getDynamicFontSize(value, fieldsRect, font);
-          Boolean isMultiline = Boolean.parseBoolean(inputInnerObj.get("multiline").toString());
+          Boolean isMultiline = Boolean.parseBoolean(multilineObj.toString());
 
           if (isMultiline == false) {
             fillFieldInput(pdf, form, name, value, pdf_template, page, p, dynamicFontSize, fieldsRect, font);
           } else {
-            Float row = Float.parseFloat(inputInnerObj.get("row").toString());
+            if (rowObj == null) {
+              continue;
+            }
+            Float row = Float.parseFloat(rowObj.toString());
             fillStructureInputMultiline(pdf, form, name, value, pdf_template, page, p, dynamicFontSize, fieldsRect, font, Math.round(row));
           }
         } else {
@@ -297,7 +293,11 @@ public class FormService {
       JSONObject innerObj = (JSONObject) i.next();
       Object form_data = innerObj.get("form_data");
       Object structure_inputs = innerObj.get("structure_inputs");
-      String pdf_template = innerObj.get("pdf_template").toString();
+      Object pdfTemplateObj = innerObj.get("pdf_template");
+      if (pdfTemplateObj == null) {
+        continue;
+      }
+      String pdf_template = pdfTemplateObj.toString();
       String output_name = String.valueOf(timestamp.getTime());
 
       if (form_data != null) {
@@ -316,28 +316,24 @@ public class FormService {
   }
 
   public JSONArray getFormArray(Object form_data) throws IOException, ParseException, org.json.simple.parser.ParseException {
-    Object form_object = new Object();
     JSONParser jsonParser = new JSONParser();
     JSONArray form_array = new JSONArray();
 
     if( form_data instanceof String ) {
       FileReader form_reader = new FileReader((String) form_data);
-      form_object = jsonParser.parse(form_reader);
+      Object form_object = jsonParser.parse(form_reader);
       form_array = (JSONArray) form_object;
     } else {
-      form_object = jsonParser.parse(gson.toJson(form_data));
+      Object form_object = jsonParser.parse(gson.toJson(form_data));
       form_array = (JSONArray) form_object;
     }
     return form_array;
   }
 
   public JSONArray getStructureInputArray(Object structure_inputs) throws IOException, ParseException, org.json.simple.parser.ParseException {
-    Object structure_input_object = new Object();
     JSONParser jsonParser = new JSONParser();
-    JSONArray structure_input_array = new JSONArray();
-
-    structure_input_object = jsonParser.parse(gson.toJson(structure_inputs));
-    structure_input_array = (JSONArray) structure_input_object;
+    Object structure_input_object = jsonParser.parse(gson.toJson(structure_inputs));
+    JSONArray structure_input_array = (JSONArray) structure_input_object;
     return structure_input_array;
   }
 
@@ -397,10 +393,15 @@ public class FormService {
     form.removeField(name);
     String[] splitted_array = value.split(" ", 0);
     String[] value_array = chunkArray(splitted_array, row);
+    
+    // Check if value_array has enough elements for the specified row count
+    if (value_array == null || value_array.length < row) {
+      return;
+    }
 
     Table table = new Table(1);
     Cell cell;
-    for (int i = 0; i < row; i++) {
+    for (int i = 0; i < row && i < value_array.length; i++) {
       float cellDynamicFontSize = getDynamicFontSize(value_array[i], cellStaticRect, font);
       cell = new Cell().add(new Paragraph(value_array[i]).setFontSize(cellDynamicFontSize).setFont(font));
       cell.setHeight((float) 14);
@@ -415,17 +416,21 @@ public class FormService {
   }
 
   public static String[] chunkArray(String[] splitted_array, int chunkSize) {
+    if (splitted_array == null || chunkSize <= 0) {
+      return new String[0];
+    }
+    
     int numOfChunks = (int) Math.ceil((double) splitted_array.length / chunkSize);
     String[] output = new String[chunkSize];
 
     int index = 0;
-    for(int i=0;i<splitted_array.length;i+=numOfChunks){
-      String[] chunk_array = Arrays.copyOfRange(splitted_array, i, Math.min(splitted_array.length,i+numOfChunks));
-      StringBuffer sb = new StringBuffer();
+    for(int i = 0; i < splitted_array.length && index < chunkSize; i += numOfChunks) {
+      String[] chunk_array = Arrays.copyOfRange(splitted_array, i, Math.min(splitted_array.length, i + numOfChunks));
+      StringBuilder sb = new StringBuilder();
       for(int s = 0; s < chunk_array.length; s++) {
-        sb.append(chunk_array[s] + " ");
+        sb.append(chunk_array[s]).append(" ");
       }
-      output[index++] = sb.toString();
+      output[index++] = sb.toString().trim();
     }
 
     return output;
@@ -448,20 +453,39 @@ public class FormService {
       p.setPaddingLeft(2);
       addTextToCanvas(page, pdf, fieldsRect, p);
     } else {
-      PdfTextFormField field = (PdfTextFormField) form.getField(name);
-      field.setValue(value);
+      PdfFormField field = form.getField(name);
+      if (field != null) {
+
+        if (field instanceof PdfTextFormField) {
+          PdfTextFormField textField = (PdfTextFormField) field;
+          textField.setValue(value);
+        }
+        else if (field instanceof PdfButtonFormField) {
+          PdfButtonFormField buttonField = (PdfButtonFormField) field;
+          if (value != null && !value.isEmpty() && !value.equalsIgnoreCase("false") && !value.equalsIgnoreCase("no")) {
+            buttonField.setValue("Yes");
+          } else {
+            buttonField.setValue("Off");
+          }
+        }
+        else {
+          form.removeField(name);
+          addTextToCanvas(page, pdf, fieldsRect, p);
+        }
+      }
     }
   }
 
   private void addTextToCanvas(PdfPage page, PdfDocument pdf, Rectangle fieldsRect, Paragraph p) {
     PdfCanvas canvas = new PdfCanvas(page);
-    // new Canvas(canvas, pdf, fieldsRect).add(p);
-    Canvas cvs = new Canvas(canvas, fieldsRect);
-    cvs.add(p);
-    pdf = cvs.getPdfDocument();
+    try (Canvas cvs = new Canvas(canvas, fieldsRect)) {
+      cvs.add(p);
+      pdf = cvs.getPdfDocument();
+    }
     canvas.rectangle(fieldsRect);
   }
 
+  @SuppressWarnings("unchecked")
   private JSONArray returnSearch(JSONArray array, String searchValue){
     JSONArray filtedArray = new JSONArray();
     // Check if array is null to avoid NullPointerException
@@ -470,10 +494,13 @@ public class FormService {
     }
     
     for (int i = 0; i < array.size(); i++) {
-      JSONObject obj= null;
-      obj = (JSONObject) array.get(i);
-      if(UriEncoder.decode(obj.get("field_name").toString()).equals(searchValue))
-      {
+      Object item = array.get(i);
+      if (!(item instanceof JSONObject)) {
+        continue;
+      }
+      JSONObject obj = (JSONObject) item;
+      Object fieldName = obj.get("field_name");
+      if (fieldName != null && UriEncoder.decode(fieldName.toString()).equals(searchValue)) {
         filtedArray.add(obj);
       }
     }
