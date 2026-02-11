@@ -428,9 +428,12 @@ public class FormService {
       String[] chunk_array = Arrays.copyOfRange(splitted_array, i, Math.min(splitted_array.length, i + numOfChunks));
       StringBuilder sb = new StringBuilder();
       for(int s = 0; s < chunk_array.length; s++) {
-        sb.append(chunk_array[s]).append(" ");
+        sb.append(chunk_array[s]);
+        if (s < chunk_array.length - 1) {
+          sb.append(" ");
+        }
       }
-      output[index++] = sb.toString().trim();
+      output[index++] = sb.toString();
     }
 
     return output;
