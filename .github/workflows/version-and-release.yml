@@ -149,6 +149,13 @@ jobs:
           
           # Create a new branch for the version bump
           BRANCH_NAME="version-bump-$NEW_VERSION"
+          
+          # Check if branch already exists remotely
+          if git ls-remote --heads origin $BRANCH_NAME | grep -q $BRANCH_NAME; then
+            echo "Branch $BRANCH_NAME already exists, deleting it..."
+            git push origin --delete $BRANCH_NAME || true
+          fi
+          
           git checkout -b $BRANCH_NAME
           
           # Update version on the new branch
@@ -160,13 +167,18 @@ jobs:
           git commit -m "chore: bump version to $NEW_VERSION"
           git push origin $BRANCH_NAME
           
-          # Create a pull request using GitHub CLI
-          gh pr create \
-            --title "chore: bump version to $NEW_VERSION" \
-            --body "Automated version bump to $NEW_VERSION" \
-            --base master \
-            --head $BRANCH_NAME \
-            --label "automated,version-bump"
+          # Check if PR already exists
+          if gh pr list --head $BRANCH_NAME --state open | grep -q $BRANCH_NAME; then
+            echo "PR for $BRANCH_NAME already exists, skipping creation"
+          else
+            # Create a pull request using GitHub CLI
+            gh pr create \
+              --title "chore: bump version to $NEW_VERSION" \
+              --body "Automated version bump to $NEW_VERSION" \
+              --base master \
+              --head $BRANCH_NAME \
+              --label "automated,version-bump"
+          fi
         fi
 
     - name: Verify version update
