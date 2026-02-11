@@ -169,8 +169,14 @@ jobs:
           git push origin $BRANCH_NAME
           
           # Create labels if they don't exist
-          gh label create "automated" --color "0066cc" --description "Automated PR" 2>/dev/null || true
-          gh label create "version-bump" --color "bfd4f2" --description "Version bump PR" 2>/dev/null || true
+          if ! gh label list | grep -q "automated"; then
+            echo "Creating 'automated' label..."
+            gh label create "automated" --color "0066cc" --description "Automated PR"
+          fi
+          if ! gh label list | grep -q "version-bump"; then
+            echo "Creating 'version-bump' label..."
+            gh label create "version-bump" --color "bfd4f2" --description "Version bump PR"
+          fi
           
           # Create a pull request using GitHub CLI
           gh pr create \
