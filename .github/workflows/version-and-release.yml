@@ -129,12 +129,6 @@ jobs:
         echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
         echo "Final version: $NEW_VERSION"
 
-    - name: Update pom.xml version
-      run: |
-        NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
-        mvn versions:set -DnewVersion=$NEW_VERSION
-        mvn versions:commit
-
     - name: Verify version update
       run: |
         # Verify the version was updated correctly
@@ -151,6 +145,17 @@ jobs:
     - name: Build and test
       run: |
         mvn clean compile test -Dspring.profiles.active=test -Dspring-boot-thin-maven-plugin.skip=true
+
+    - name: Update and commit pom.xml version
+      run: |
+        NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
+        mvn versions:set -DnewVersion=$NEW_VERSION
+        mvn versions:commit
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add pom.xml
+        git commit -m "chore: bump version to $NEW_VERSION"
+        git push origin master
 
     - name: Create and push tag
       run: |
