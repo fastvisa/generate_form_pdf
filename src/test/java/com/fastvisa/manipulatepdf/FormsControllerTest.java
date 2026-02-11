@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
@@ -20,14 +21,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     "AWS_ACCESS_KEY_ID=",
     "AWS_SECRET_ACCESS_KEY=",
     "AWS_S3_BUCKET_NAME=",
-    "AWS_S3_BUCKET_REGION=us-east-1",
-    "project.version=1.0.0-SNAPSHOT"
+    "AWS_S3_BUCKET_REGION=us-east-1"
 })
 @DisplayName("FormsController Tests")
 class FormsControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Value("${app.version}")
+    private String projectVersion;
 
     @MockBean
     private com.fastvisa.services.FormService formService;
@@ -50,7 +53,7 @@ class FormsControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.status").value("UP"))
             .andExpect(jsonPath("$.service").value("manipulate-pdf"))
-            .andExpect(jsonPath("$.version").value("1.0.0-SNAPSHOT"))
+            .andExpect(jsonPath("$.version").value(projectVersion))
             .andExpect(jsonPath("$.timestamp").exists());
     }
 
