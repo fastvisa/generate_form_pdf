@@ -129,15 +129,46 @@ jobs:
         echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
         echo "Final version: $NEW_VERSION"
 
-    - name: Update pom.xml version
+    - name: Update and commit pom.xml version
+      id: commit_version
       run: |
         NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
-        # Remove any existing backup files from previous runs
-        rm -f pom.xml.versionsBackup
-        mvn versions:set -DnewVersion=$NEW_VERSION
-        mvn versions:commit
+        
+        # Check if this is an automated PR (version bump PR)
+        PR_LABELS="${{ github.event.pull_request.labels.*.name }}"
+        echo "PR labels: $PR_LABELS"
+        
+        if echo "$PR_LABELS" | grep -q "automated"; then
+          echo "is_automated=true" >> $GITHUB_OUTPUT
+          echo "This is an automated version bump PR, will create tag"
+        else
+          echo "is_automated=false" >> $GITHUB_OUTPUT
+          echo "This is a regular PR, will create version bump PR"
+          
+          # Create a new branch for the version bump
+          BRANCH_NAME="version-bump-$NEW_VERSION"
+          git checkout -b $BRANCH_NAME
+          
+          # Update version on the new branch
+          mvn versions:set -DnewVersion=$NEW_VERSION
+          mvn versions:commit
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add pom.xml
+          git commit -m "chore: bump version to $NEW_VERSION"
+          git push origin $BRANCH_NAME
+          
+          # Create a pull request using GitHub CLI
+          gh pr create \
+            --title "chore: bump version to $NEW_VERSION" \
+            --body "Automated version bump to $NEW_VERSION" \
+            --base master \
+            --head $BRANCH_NAME \
+            --label "automated,version-bump"
+        fi
 
     - name: Verify version update
+      if: steps.commit_version.outputs.is_automated == 'true'
       run: |
         # Verify the version was updated correctly
         UPDATED_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
@@ -151,21 +182,12 @@ jobs:
         echo "Version verified successfully."
 
     - name: Build and test
+      if: steps.commit_version.outputs.is_automated == 'true'
       run: |
         mvn clean compile test -Dspring.profiles.active=test -Dspring-boot-thin-maven-plugin.skip=true
 
-    - name: Update and commit pom.xml version
-      run: |
-        NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
-        mvn versions:set -DnewVersion=$NEW_VERSION
-        mvn versions:commit
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add pom.xml
-        git commit -m "chore: bump version to $NEW_VERSION"
-        git push origin master
-
     - name: Create and push tag
+      if: steps.commit_version.outputs.is_automated == 'true'
       run: |
         NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
         git config --local user.email "action@github.com"
