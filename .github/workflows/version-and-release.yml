@@ -168,6 +168,10 @@ jobs:
           git pull --rebase origin master
           git push origin $BRANCH_NAME
           
+          # Create labels if they don't exist
+          gh label create "automated" --color "0066cc" --description "Automated PR" 2>/dev/null || true
+          gh label create "version-bump" --color "bfd4f2" --description "Version bump PR" 2>/dev/null || true
+          
           # Create a pull request using GitHub CLI
           gh pr create \
             --title "chore: bump version to $NEW_VERSION" \
