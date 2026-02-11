@@ -131,6 +131,8 @@ jobs:
 
     - name: Update and commit pom.xml version
       id: commit_version
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
         NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
         
