@@ -133,7 +133,7 @@ class FormServiceTest {
         String[] result = FormService.chunkArray(input, chunkSize);
 
         assertThat(result).hasSize(1);
-        assertThat(result[0]).isEqualTo("only ");
+        assertThat(result[0]).isEqualTo("only");
     }
 
     private File createTempJsonFile(String content) throws IOException {
