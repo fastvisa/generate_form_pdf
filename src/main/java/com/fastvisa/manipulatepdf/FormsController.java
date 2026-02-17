@@ -21,7 +21,8 @@ import org.json.simple.JSONArray;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.SdkClientException;
 import com.fastvisa.services.AwsS3Service;
-import com.fastvisa.services.FormService;
+import com.fastvisa.services.FillFormService;
+import com.fastvisa.services.CombineFormService;
 import com.fastvisa.services.ReceiptService;
 
 @RestController
@@ -45,7 +46,7 @@ public class FormsController {
 
   @PostMapping(path = "/api/v1/fillform", consumes = "application/json", produces = "application/json")
   public Form fillform(@RequestBody String bodyParameter) throws Exception {
-    FormService formService = new FormService();
+    FillFormService fillFormService = new FillFormService();
     JSONArray form_array = new JSONArray();
     JSONArray structure_input_array = new JSONArray();
     Timestamp timestamp = new Timestamp(System.currentTimeMillis());
@@ -57,12 +58,12 @@ public class FormsController {
     Object structure_inputs = convertedObject.get("structure_inputs");
     String output_name = String.valueOf(timestamp.getTime());
 
-    form_array = formService.getFormArray(form_data);
-    structure_input_array = formService.getStructureInputArray(structure_inputs);
+    form_array = fillFormService.getFormArray(form_data);
+    structure_input_array = fillFormService.getStructureInputArray(structure_inputs);
 
     File file = File.createTempFile(output_name, "pdf");
 
-    formService.fillForm(form_array, pdf_template, structure_input_array, file, output_name);
+    fillFormService.fillForm(form_array, pdf_template, structure_input_array, file, output_name);
 
     uploadS3(file, output_name);
 
@@ -72,17 +73,17 @@ public class FormsController {
   @PostMapping(path = "/api/v1/combineform", consumes = "application/json", produces = "application/json")
   public Form combineform(@RequestBody String bodyParameter) throws Exception {
     JSONArray pdf_array = new JSONArray();
-    FormService formService = new FormService();
+    CombineFormService combineFormService = new CombineFormService();
     String combined_file_name = "combined-pdf";
 
     JsonObject convertedObject = gson.fromJson(bodyParameter, JsonObject.class);
 
     Object pdf_data = convertedObject.get("pdf_data");
-    pdf_array = formService.getFormArray(pdf_data);
+    pdf_array = combineFormService.getFormArray(pdf_data);
 
     File combined_file = File.createTempFile(combined_file_name, "pdf");
 
-    formService.combineForm(combined_file, pdf_array);
+    combineFormService.combineForm(combined_file, pdf_array);
 
     uploadS3(combined_file, combined_file_name);
 

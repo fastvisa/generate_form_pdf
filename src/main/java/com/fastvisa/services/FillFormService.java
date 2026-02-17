@@ -3,18 +3,7 @@ package com.fastvisa.services;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.sql.Timestamp;
-import java.text.ParseException;
-import java.util.Arrays;
 import java.util.Iterator;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -35,7 +24,6 @@ import com.itextpdf.kernel.pdf.PdfPage;
 import com.itextpdf.kernel.pdf.PdfReader;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
-import com.itextpdf.kernel.utils.PdfMerger;
 import com.itextpdf.layout.Canvas;
 import com.itextpdf.layout.Document;
 import com.itextpdf.layout.borders.Border;
@@ -48,162 +36,23 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.yaml.snakeyaml.util.UriEncoder;
+import java.util.Arrays;
 
-public class FormService {
+public class FillFormService {
   
-  /**
-   * Downloads a PDF file from a URL and returns the local file path
-   * If the path is already a local file, returns it as-is
-   */
-  private String getPdfTemplatePath(String pdf_template) throws IOException {
-    // Check if it's a URL
-    if (pdf_template.startsWith("http://") || pdf_template.startsWith("https://")) {
-      // Download the PDF to a temporary file
-      String tempFileName = "template_" + System.currentTimeMillis() + ".pdf";
-      Path tempFile = Files.createTempFile(tempFileName, ".pdf");
-      
-      String currentUrl = pdf_template;
-      int maxRedirects = 10;
-      int redirectCount = 0;
-      
-      while (redirectCount < maxRedirects) {
-        URL url = new URL(currentUrl);
-        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        
-        // Set user agent to avoid being blocked
-        connection.setRequestProperty("User-Agent", "Mozilla/5.0");
-        connection.setInstanceFollowRedirects(false); // We'll handle redirects manually
-        
-        // Connect and get response code
-        connection.connect();
-        int responseCode = connection.getResponseCode();
-        String contentType = connection.getContentType();
-        
-        System.out.println("Downloading PDF from URL: " + currentUrl);
-        System.out.println("Response code: " + responseCode);
-        System.out.println("Content-Type: " + contentType);
-        
-        // Check for redirects
-        if (responseCode == HttpURLConnection.HTTP_MOVED_PERM ||
-            responseCode == HttpURLConnection.HTTP_MOVED_TEMP ||
-            responseCode == HttpURLConnection.HTTP_SEE_OTHER) {
-          
-          // Get the redirect location
-          String redirectUrl = connection.getHeaderField("Location");
-          if (redirectUrl != null && !redirectUrl.isEmpty()) {
-            System.out.println("Redirecting to: " + redirectUrl);
-            currentUrl = redirectUrl;
-            redirectCount++;
-            connection.disconnect();
-            continue;
-          }
-        }
-        
-        // If not a redirect, check if we got a successful response
-        if (responseCode != HttpURLConnection.HTTP_OK) {
-          throw new IOException("Failed to download PDF. HTTP response code: " + responseCode);
-        }
-        
-        // Check if content type is PDF
-        if (contentType == null || !contentType.toLowerCase().contains("application/pdf")) {
-          // Try to extract redirect URL from HTML if it's a redirect page
-          if (contentType != null && contentType.toLowerCase().contains("text/html")) {
-            String htmlContent = readStreamToString(connection.getInputStream());
-            String extractedUrl = extractRedirectUrlFromHtml(htmlContent);
-            if (extractedUrl != null) {
-              System.out.println("Extracted redirect URL from HTML: " + extractedUrl);
-              currentUrl = extractedUrl;
-              redirectCount++;
-              connection.disconnect();
-              continue;
-            }
-          }
-          System.err.println("WARNING: Content-Type is not PDF: " + contentType);
-          System.err.println("URL might be a redirect or returning HTML instead of PDF");
-        }
-        
-        // Download the file
-        try (InputStream in = connection.getInputStream()) {
-          Files.copy(in, tempFile, StandardCopyOption.REPLACE_EXISTING);
-        }
-        
-        connection.disconnect();
-        
-        // Validate the downloaded file is actually a PDF
-        byte[] header = new byte[4];
-        try (InputStream checkStream = Files.newInputStream(tempFile)) {
-          int bytesRead = checkStream.read(header);
-          if (bytesRead >= 4) {
-            String headerStr = new String(header);
-            if (!headerStr.equals("%PDF")) {
-              throw new IOException("Downloaded file is not a valid PDF. Header: " + headerStr);
-            }
-          }
-        }
-        
-        String tempFilePath = tempFile.toString();
-        System.out.println("Successfully downloaded PDF template to: " + tempFilePath);
-        return tempFilePath;
-      }
-      
-      throw new IOException("Too many redirects (max: " + maxRedirects + ")");
-    }
-    
-    // It's already a local file path
-    return pdf_template;
+  private Gson gson = new GsonBuilder().serializeNulls().create();
+  private PdfUtilityService pdfUtilityService;
+
+  public FillFormService() {
+    this.pdfUtilityService = new PdfUtilityService();
   }
-  
-  /**
-   * Reads an input stream to a string
-   */
-  private String readStreamToString(InputStream inputStream) throws IOException {
-    StringBuilder result = new StringBuilder();
-    byte[] buffer = new byte[1024];
-    int length;
-    while ((length = inputStream.read(buffer)) != -1) {
-      result.append(new String(buffer, 0, length));
-    }
-    return result.toString();
-  }
-  
-  /**
-   * Extracts redirect URL from HTML content
-   */
-  private String extractRedirectUrlFromHtml(String html) {
-    // Pattern to match meta refresh redirects
-    Pattern metaRefreshPattern = Pattern.compile(
-      "<meta\\s+http-equiv\\s*=\\s*[\"']refresh[\"']\\s+content\\s*=\\s*[\"']([^\"']+)[\"']",
-      Pattern.CASE_INSENSITIVE
-    );
-    Matcher matcher = metaRefreshPattern.matcher(html);
-    if (matcher.find()) {
-      String content = matcher.group(1);
-      // Extract URL from content like "0;url=http://example.com"
-      Pattern urlPattern = Pattern.compile("url\\s*=\\s*([^\\s;]+)", Pattern.CASE_INSENSITIVE);
-      Matcher urlMatcher = urlPattern.matcher(content);
-      if (urlMatcher.find()) {
-        return urlMatcher.group(1);
-      }
-    }
-    
-    // Pattern to match JavaScript redirects
-    Pattern jsRedirectPattern = Pattern.compile(
-      "window\\.location\\s*=\\s*[\"']([^\"']+)[\"']",
-      Pattern.CASE_INSENSITIVE
-    );
-    matcher = jsRedirectPattern.matcher(html);
-    if (matcher.find()) {
-      return matcher.group(1);
-    }
-    
-    return null;
-  }
-  
+
+
   public void fillForm(JSONArray form_array, String pdf_template, JSONArray structure_input_array, File file, String output_name) throws IOException {
     String output_file = file.getAbsolutePath();
     
     // Handle URL-based templates by downloading them first
-    String actualPdfPath = getPdfTemplatePath(pdf_template);
+    String actualPdfPath = pdfUtilityService.getPdfTemplatePath(pdf_template);
     
     PdfReader reader = new PdfReader(actualPdfPath);
     reader.setUnethicalReading(true);
@@ -280,93 +129,6 @@ public class FormService {
     form.flattenFields();
     pdf.close();
   }
-
-  public void combineForm(File combined_file, JSONArray pdf_array) throws IOException, ParseException, org.json.simple.parser.ParseException {
-    PdfDocument pdf = new PdfDocument(new PdfWriter(combined_file));
-    PdfMerger merger = new PdfMerger(pdf);
-    JSONArray form_array = new JSONArray();
-    JSONArray structure_input_array = new JSONArray();
-    Timestamp timestamp = new Timestamp(System.currentTimeMillis());
-    int mergedPdfCount = 0;
-
-    Iterator<?> i = pdf_array.iterator();
-    while (i.hasNext()) {
-      JSONObject innerObj = (JSONObject) i.next();
-      Object form_data = innerObj.get("form_data");
-      Object structure_inputs = innerObj.get("structure_inputs");
-      Object pdfTemplateObj = innerObj.get("pdf_template");
-      Object templatePathObj = innerObj.get("template_path");      
-      String pdf_template = (pdfTemplateObj != null) ? pdfTemplateObj.toString() : templatePathObj.toString();
-      String output_name = String.valueOf(timestamp.getTime()) + "_" + mergedPdfCount;
-
-      File file = File.createTempFile(output_name, "pdf");
-
-      try {
-        if (form_data != null) {
-          form_array = getFormArray(form_data);
-          structure_input_array = getStructureInputArray(structure_inputs);
-          System.out.println("Filling form with " + form_array.size() + " fields");
-          fillForm(form_array, pdf_template, structure_input_array, file, output_name);
-        } else {
-          System.out.println("No form data, copying template as-is");
-          String actualPdfPath = getPdfTemplatePath(pdf_template);
-          Files.copy(new File(actualPdfPath).toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
-        }
-
-        PdfDocument sourcePdf = new PdfDocument(new PdfReader(file));
-        int pageCount = sourcePdf.getNumberOfPages();
-        merger.merge(sourcePdf, 1, pageCount);
-        sourcePdf.close();
-        mergedPdfCount++;
-        
-      } catch (Exception e) {
-        System.err.println("Error processing PDF: " + e.getMessage());
-        e.printStackTrace();
-        if (file.exists()) {
-          file.delete();
-        }
-        continue;
-      } finally {
-        if (file.exists()) {
-          file.delete();
-        }
-      }
-    }
-    
-    System.out.println("Total PDFs merged: " + mergedPdfCount);
-    
-    if (mergedPdfCount == 0) {
-      pdf.close();
-      throw new IOException("No PDFs were successfully merged. The combined file will be blank.");
-    }
-    
-    pdf.close();
-    System.out.println("Combined PDF created successfully at: " + combined_file.getAbsolutePath());
-  }
-
-  public JSONArray getFormArray(Object form_data) throws IOException, ParseException, org.json.simple.parser.ParseException {
-    JSONParser jsonParser = new JSONParser();
-    JSONArray form_array = new JSONArray();
-
-    if( form_data instanceof String ) {
-      FileReader form_reader = new FileReader((String) form_data);
-      Object form_object = jsonParser.parse(form_reader);
-      form_array = (JSONArray) form_object;
-    } else {
-      Object form_object = jsonParser.parse(gson.toJson(form_data));
-      form_array = (JSONArray) form_object;
-    }
-    return form_array;
-  }
-
-  public JSONArray getStructureInputArray(Object structure_inputs) throws IOException, ParseException, org.json.simple.parser.ParseException {
-    JSONParser jsonParser = new JSONParser();
-    Object structure_input_object = jsonParser.parse(gson.toJson(structure_inputs));
-    JSONArray structure_input_array = (JSONArray) structure_input_object;
-    return structure_input_array;
-  }
-
-  private Gson gson = new GsonBuilder().serializeNulls().create();
 
   private void removeUsageRights(PdfDocument pdfDoc) {
     PdfDictionary perms = pdfDoc.getCatalog().getPdfObject().getAsDictionary(PdfName.Perms);
@@ -445,16 +207,16 @@ public class FormService {
   }
 
   public static String[] chunkArray(String[] splitted_array, int chunkSize) {
-    if (splitted_array == null || chunkSize <= 0) {
+    if (splitted_array == null || chunkSize <= 0 || splitted_array.length == 0) {
       return new String[0];
     }
     
     int numOfChunks = (int) Math.ceil((double) splitted_array.length / chunkSize);
-    String[] output = new String[chunkSize];
+    String[] output = new String[Math.min(chunkSize, numOfChunks)];
 
     int index = 0;
-    for(int i = 0; i < splitted_array.length && index < chunkSize; i += numOfChunks) {
-      String[] chunk_array = Arrays.copyOfRange(splitted_array, i, Math.min(splitted_array.length, i + numOfChunks));
+    for(int i = 0; i < splitted_array.length && index < output.length; i += numOfChunks) {
+      String[] chunk_array = java.util.Arrays.copyOfRange(splitted_array, i, Math.min(splitted_array.length, i + numOfChunks));
       StringBuilder sb = new StringBuilder();
       for(int s = 0; s < chunk_array.length; s++) {
         sb.append(chunk_array[s]);
@@ -549,6 +311,28 @@ public class FormService {
     float stringWidth = font.getWidth(value);
     fontSize = Math.min(fontSize, (rectWidth - 3) / stringWidth);
     return fontSize;
+  }
+
+  public JSONArray getFormArray(Object form_data) throws IOException, java.text.ParseException, org.json.simple.parser.ParseException {
+    JSONParser jsonParser = new JSONParser();
+    JSONArray form_array = new JSONArray();
+
+    if( form_data instanceof String ) {
+      FileReader form_reader = new FileReader((String) form_data);
+      Object form_object = jsonParser.parse(form_reader);
+      form_array = (JSONArray) form_object;
+    } else {
+      Object form_object = jsonParser.parse(gson.toJson(form_data));
+      form_array = (JSONArray) form_object;
+    }
+    return form_array;
+  }
+
+  public JSONArray getStructureInputArray(Object structure_inputs) throws IOException, java.text.ParseException, org.json.simple.parser.ParseException {
+    JSONParser jsonParser = new JSONParser();
+    Object structure_input_object = jsonParser.parse(gson.toJson(structure_inputs));
+    JSONArray structure_input_array = (JSONArray) structure_input_object;
+    return structure_input_array;
   }
 
 }
