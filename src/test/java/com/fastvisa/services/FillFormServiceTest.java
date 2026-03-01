@@ -67,22 +67,23 @@ class FillFormServiceTest {
     }
 
     @Test
-    @DisplayName("Should parse structure inputs from object")
-    void shouldParseStructureInputsFromObject() throws Exception {
-        Map<String, Object> structure1 = new HashMap<>();
-        structure1.put("field_name", "field1");
-        structure1.put("x", 100);
-        structure1.put("y", 200);
+    @DisplayName("Should parse custom fields from object")
+    void shouldParseCustomFieldsFromObject() throws Exception {
+        Map<String, Object> custom1 = new HashMap<>();
+        custom1.put("field_name", "field1");
+        custom1.put("x", 100);
+        custom1.put("y", 200);
 
-        Object structureInputs = Arrays.asList(structure1);
+        Object customFields = Arrays.asList(custom1);
 
-        JSONArray result = fillFormService.getStructureInputArray(structureInputs);
+        JSONArray result = fillFormService.getCustomFieldsArray(customFields);
 
         assertThat(result).hasSize(1);
-        JSONObject structure = (JSONObject) result.get(0);
-        assertThat(structure.get("field_name")).isEqualTo("field1");
-        assertThat(structure.get("x")).isEqualTo(100L);
+        JSONObject field = (JSONObject) result.get(0);
+        assertThat(field.get("field_name")).isEqualTo("field1");
+        assertThat(field.get("x")).isEqualTo(100L);
     }
+
 
     @Test
     @DisplayName("Should chunk array correctly")

@@ -114,7 +114,7 @@ sudo npm install -g pm2
 {
   "form_data": { /* form field data */ },
   "template_path": "path/to/template.pdf",
-  "structure_inputs": { /* structure configuration */ }
+  "custom_fields": { /* structure configuration */ }
 }
 ```
 
@@ -143,7 +143,7 @@ All POST endpoints return JSON with the processed file URL:
 {
   "form_data": { /* original data */ },
   "template_path": "template.pdf",
-  "structure_inputs": { /* structure data */ },
+  "custom_fields": { /* structure data */ },
   "url_download": "https://s3-bucket-url/generated-file.pdf"
 }
 ```

@@ -29,7 +29,7 @@ public class CombineFormService {
     PdfDocument pdf = new PdfDocument(new PdfWriter(combined_file));
     PdfMerger merger = new PdfMerger(pdf);
     JSONArray form_array = new JSONArray();
-    JSONArray structure_input_array = new JSONArray();
+    JSONArray custom_field_array = new JSONArray();
     Timestamp timestamp = new Timestamp(System.currentTimeMillis());
     int mergedPdfCount = 0;
 
@@ -37,7 +37,7 @@ public class CombineFormService {
     while (i.hasNext()) {
       JSONObject innerObj = (JSONObject) i.next();
       Object form_data = innerObj.get("form_data");
-      Object structure_inputs = innerObj.get("structure_inputs");
+      Object custom_fields = innerObj.get("custom_fields");
       Object pdfTemplateObj = innerObj.get("pdf_template");
       Object templatePathObj = innerObj.get("template_path");      
       String pdf_template = (pdfTemplateObj != null) ? pdfTemplateObj.toString() : templatePathObj.toString();
@@ -48,9 +48,9 @@ public class CombineFormService {
       try {
         if (form_data != null) {
           form_array = fillFormService.getFormArray(form_data);
-          structure_input_array = fillFormService.getStructureInputArray(structure_inputs);
+          custom_field_array = fillFormService.getCustomFieldsArray(custom_fields);
           System.out.println("Filling form with " + form_array.size() + " fields");
-          fillFormService.fillForm(form_array, pdf_template, structure_input_array, file, output_name);
+          fillFormService.fillForm(form_array, pdf_template, custom_field_array, file, output_name);
         } else {
           System.out.println("No form data, copying template as-is");
           String actualPdfPath = pdfUtilityService.getPdfTemplatePath(pdf_template);

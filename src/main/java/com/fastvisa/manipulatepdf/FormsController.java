@@ -48,26 +48,27 @@ public class FormsController {
   public Form fillform(@RequestBody String bodyParameter) throws Exception {
     FillFormService fillFormService = new FillFormService();
     JSONArray form_array = new JSONArray();
-    JSONArray structure_input_array = new JSONArray();
+    JSONArray custom_field_array = new JSONArray();
     Timestamp timestamp = new Timestamp(System.currentTimeMillis());
 
     JsonObject convertedObject = gson.fromJson(bodyParameter, JsonObject.class);
 
     Object form_data = convertedObject.get("form_data");
     String pdf_template = convertedObject.get("template_path").getAsString();
-    Object structure_inputs = convertedObject.get("structure_inputs");
+    Object custom_fields = convertedObject.get("custom_fields");
     String output_name = String.valueOf(timestamp.getTime());
 
     form_array = fillFormService.getFormArray(form_data);
-    structure_input_array = fillFormService.getStructureInputArray(structure_inputs);
+    custom_field_array = fillFormService.getCustomFieldsArray(custom_fields);
 
     File file = File.createTempFile(output_name, "pdf");
 
-    fillFormService.fillForm(form_array, pdf_template, structure_input_array, file, output_name);
+    fillFormService.fillForm(form_array, pdf_template, custom_field_array, file, output_name);
 
     uploadS3(file, output_name);
 
-    return new Form(new Object(), form_data, pdf_template, structure_inputs, url_download);
+    Object customFieldsForResponse = gson.fromJson(gson.toJson(custom_fields), Object.class);
+    return new Form(new Object(), form_data, pdf_template, customFieldsForResponse, url_download);
   }
 
   @PostMapping(path = "/api/v1/combineform", consumes = "application/json", produces = "application/json")

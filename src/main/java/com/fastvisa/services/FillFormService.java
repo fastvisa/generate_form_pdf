@@ -48,7 +48,7 @@ public class FillFormService {
   }
 
 
-  public void fillForm(JSONArray form_array, String pdf_template, JSONArray structure_input_array, File file, String output_name) throws IOException {
+  public void fillForm(JSONArray form_array, String pdf_template, JSONArray custom_field_array, File file, String output_name) throws IOException {
     String output_file = file.getAbsolutePath();
     
     // Handle URL-based templates by downloading them first
@@ -84,48 +84,49 @@ public class FillFormService {
         float inputDynamicFontSize = getDynamicFontSize(value, fieldsRectInput, font);
         boolean inputIsMultiline = field.isMultiline();
 
-        JSONArray structure = returnSearch(structure_input_array, name);
-
-        if (!structure.isEmpty()) {
-          JSONObject inputInnerObj = (JSONObject) structure.get(0);
-          Object xObj = inputInnerObj.get("x");
-          Object yObj = inputInnerObj.get("y");
-          Object widthObj = inputInnerObj.get("width");
-          Object heightObj = inputInnerObj.get("height");
-          Object multilineObj = inputInnerObj.get("multiline");
-          Object rowObj = inputInnerObj.get("row");
-          
-          if (xObj == null || yObj == null || widthObj == null || heightObj == null || multilineObj == null) {
-            continue;
-          }
-          
-          Float x = Float.valueOf(xObj.toString()) * 0.75f * 0.87f;
-          Float y = Float.valueOf(yObj.toString()) * 0.75f * 0.87f;
-          Float width = Float.valueOf(widthObj.toString()) * 0.75f * 0.87f;
-          Float height = Float.valueOf(heightObj.toString()) * 0.75f * 0.87f;
-          Rectangle fieldsRect = new Rectangle(x, y, width, height);
-          float dynamicFontSize = getDynamicFontSize(value, fieldsRect, font);
-          Boolean isMultiline = Boolean.parseBoolean(multilineObj.toString());
-
-          if (isMultiline == false) {
-            fillFieldInput(pdf, form, name, value, pdf_template, page, p, dynamicFontSize, fieldsRect, font);
-          } else {
-            if (rowObj == null) {
-              continue;
-            }
-            Float row = Float.parseFloat(rowObj.toString());
-            fillStructureInputMultiline(pdf, form, name, value, pdf_template, page, p, dynamicFontSize, fieldsRect, font, Math.round(row));
-          }
+        if (inputIsMultiline == false) {
+          fillFieldInput(pdf, form, name, value, pdf_template, page, p, inputDynamicFontSize, fieldsRectInput, font, false);
         } else {
-          if (inputIsMultiline == false) {
-            fillFieldInput(pdf, form, name, value, pdf_template, page, p, inputDynamicFontSize, fieldsRectInput, font);
-          } else {
-            fillFieldMultiline(pdf, form, name, value, pdf_template, page, p, inputDynamicFontSize, fieldsRectInput, font);
-          }
+          fillFieldMultiline(pdf, form, name, value, pdf_template, page, p, inputDynamicFontSize, fieldsRectInput, font);
         }
 
       }
     }
+    if (custom_field_array != null) {
+      PdfFont font = PdfFontFactory.createFont(StandardFonts.COURIER);
+      Iterator<?> cfIter = custom_field_array.iterator();
+      while (cfIter.hasNext()) {
+        Object o = cfIter.next();
+        if (!(o instanceof JSONObject)) {
+          continue;
+        }
+        JSONObject cfObj = (JSONObject) o;
+        String cfValue = cfObj.get("value") == null ? "" : cfObj.get("value").toString();
+        String cfName = cfObj.get("label") != null ? cfObj.get("label").toString() : cfObj.get("id").toString();
+
+        int pageNumber = 1;
+        Object pageObj = cfObj.get("page");
+        if (pageObj != null) {
+          try {
+            pageNumber = Integer.parseInt(pageObj.toString());
+          } catch (NumberFormatException ignored) {}
+        }
+        PdfPage cfPage = pdf.getPage(pageNumber);
+        Float rawX = Float.valueOf(cfObj.get("x").toString()) * 0.75f * 0.87f;
+        Float rawY = Float.valueOf(cfObj.get("y").toString()) * 0.75f * 0.87f;
+        Float width = Float.valueOf(cfObj.get("width").toString()) * 0.75f * 0.87f;
+        Float height = Float.valueOf(cfObj.get("height").toString()) * 0.75f * 0.87f;
+        float pageHeight = cfPage.getPageSize().getHeight();
+        Float y = pageHeight - rawY - height;
+        Rectangle fieldsRect = new Rectangle(rawX, y, width, height);
+        float dynamicFontSize = getDynamicFontSize(cfValue, fieldsRect, font);
+        Text cfText = new Text(cfValue).setFont(font).setFontSize((float) 10);
+        Paragraph cfParagraph = new Paragraph(cfText).setFontColor(ColorConstants.BLACK);
+
+        fillFieldInput(pdf, form, cfName, cfValue, pdf_template, cfPage, cfParagraph, dynamicFontSize, fieldsRect, font, true);
+      }
+    }
+
     form.flattenFields();
     pdf.close();
   }
@@ -166,7 +167,7 @@ public class FillFormService {
     addTextToCanvas(page, pdf, fieldsRect, p);
   }
 
-  private void fillStructureInputMultiline(
+  private void fillCustomFieldMultiline(
     PdfDocument pdf,
     PdfAcroForm form,
     String name,
@@ -240,8 +241,12 @@ public class FillFormService {
     Paragraph p,
     float dynamicFontSize,
     Rectangle fieldsRect,
-    PdfFont font
+    PdfFont font,
+    boolean isCustomField
   ) throws IOException {
+    if (isCustomField) {
+      addTextToCanvas(page, pdf, fieldsRect, p);
+    }
     if (name.toLowerCase().contains("state")) {
       form.removeField(name);
       p.setPaddingLeft(2);
@@ -249,7 +254,6 @@ public class FillFormService {
     } else {
       PdfFormField field = form.getField(name);
       if (field != null) {
-
         if (field instanceof PdfTextFormField) {
           PdfTextFormField textField = (PdfTextFormField) field;
           textField.setValue(value);
@@ -279,28 +283,6 @@ public class FillFormService {
     canvas.rectangle(fieldsRect);
   }
 
-  @SuppressWarnings("unchecked")
-  private JSONArray returnSearch(JSONArray array, String searchValue){
-    JSONArray filtedArray = new JSONArray();
-    // Check if array is null to avoid NullPointerException
-    if (array == null) {
-      return filtedArray;
-    }
-    
-    for (int i = 0; i < array.size(); i++) {
-      Object item = array.get(i);
-      if (!(item instanceof JSONObject)) {
-        continue;
-      }
-      JSONObject obj = (JSONObject) item;
-      Object fieldName = obj.get("field_name");
-      if (fieldName != null && UriEncoder.decode(fieldName.toString()).equals(searchValue)) {
-        filtedArray.add(obj);
-      }
-    }
-    return filtedArray;
-  }
-
   private float getDynamicFontSize(String value, Rectangle fieldsRect, PdfFont font) {
     float fontSize = 10;
     int[] fontBox = font.getFontProgram().getFontMetrics().getBbox();
@@ -328,11 +310,11 @@ public class FillFormService {
     return form_array;
   }
 
-  public JSONArray getStructureInputArray(Object structure_inputs) throws IOException, java.text.ParseException, org.json.simple.parser.ParseException {
+  public JSONArray getCustomFieldsArray(Object custom_fields) throws IOException, java.text.ParseException, org.json.simple.parser.ParseException {
     JSONParser jsonParser = new JSONParser();
-    Object structure_input_object = jsonParser.parse(gson.toJson(structure_inputs));
-    JSONArray structure_input_array = (JSONArray) structure_input_object;
-    return structure_input_array;
+    Object custom_field_object = jsonParser.parse(gson.toJson(custom_fields));
+    JSONArray custom_field_array = (JSONArray) custom_field_object;
+    return custom_field_array;
   }
 
 }
