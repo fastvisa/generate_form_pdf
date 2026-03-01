@@ -18,15 +18,15 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DisplayName("FormService Tests")
-class FormServiceTest {
+@DisplayName("FillFormService Tests")
+class FillFormServiceTest {
 
-    private FormService formService;
+    private FillFormService fillFormService;
     private JSONParser jsonParser;
 
     @BeforeEach
     void setUp() {
-        formService = new FormService();
+        fillFormService = new FillFormService();
         jsonParser = new JSONParser();
     }
 
@@ -36,7 +36,7 @@ class FormServiceTest {
         String jsonData = "[{\"name\":\"field1\",\"value\":\"value1\"},{\"name\":\"field2\",\"value\":\"value2\"}]";
         File tempFile = createTempJsonFile(jsonData);
 
-        JSONArray result = formService.getFormArray(tempFile.getAbsolutePath());
+        JSONArray result = fillFormService.getFormArray(tempFile.getAbsolutePath());
 
         assertThat(result).hasSize(2);
         JSONObject field1 = (JSONObject) result.get(0);
@@ -59,7 +59,7 @@ class FormServiceTest {
 
         Object formData = Arrays.asList(formData1, formData2);
 
-        JSONArray result = formService.getFormArray(formData);
+        JSONArray result = fillFormService.getFormArray(formData);
 
         assertThat(result).hasSize(2);
         JSONObject field1 = (JSONObject) result.get(0);
@@ -67,22 +67,23 @@ class FormServiceTest {
     }
 
     @Test
-    @DisplayName("Should parse structure inputs from object")
-    void shouldParseStructureInputsFromObject() throws Exception {
-        Map<String, Object> structure1 = new HashMap<>();
-        structure1.put("field_name", "field1");
-        structure1.put("x", 100);
-        structure1.put("y", 200);
+    @DisplayName("Should parse custom fields from object")
+    void shouldParseCustomFieldsFromObject() throws Exception {
+        Map<String, Object> custom1 = new HashMap<>();
+        custom1.put("field_name", "field1");
+        custom1.put("x", 100);
+        custom1.put("y", 200);
 
-        Object structureInputs = Arrays.asList(structure1);
+        Object customFields = Arrays.asList(custom1);
 
-        JSONArray result = formService.getStructureInputArray(structureInputs);
+        JSONArray result = fillFormService.getCustomFieldsArray(customFields);
 
         assertThat(result).hasSize(1);
-        JSONObject structure = (JSONObject) result.get(0);
-        assertThat(structure.get("field_name")).isEqualTo("field1");
-        assertThat(structure.get("x")).isEqualTo(100L);
+        JSONObject field = (JSONObject) result.get(0);
+        assertThat(field.get("field_name")).isEqualTo("field1");
+        assertThat(field.get("x")).isEqualTo(100L);
     }
+
 
     @Test
     @DisplayName("Should chunk array correctly")
@@ -90,7 +91,7 @@ class FormServiceTest {
         String[] input = {"one", "two", "three", "four", "five", "six", "seven", "eight", "nine"};
         int chunkSize = 3;
 
-        String[] result = FormService.chunkArray(input, chunkSize);
+        String[] result = FillFormService.chunkArray(input, chunkSize);
 
         assertThat(result).hasSize(chunkSize);
         assertThat(result[0]).contains("one", "two", "three");
@@ -104,7 +105,7 @@ class FormServiceTest {
         String[] input = {"one", "two", "three", "four", "five", "six"};
         int chunkSize = 2;
 
-        String[] result = FormService.chunkArray(input, chunkSize);
+        String[] result = FillFormService.chunkArray(input, chunkSize);
 
         assertThat(result).hasSize(2);
         assertThat(result[0]).contains("one", "two", "three");
@@ -117,7 +118,7 @@ class FormServiceTest {
         String[] input = {"one", "two", "three", "four", "five"};
         int chunkSize = 2;
 
-        String[] result = FormService.chunkArray(input, chunkSize);
+        String[] result = FillFormService.chunkArray(input, chunkSize);
 
         assertThat(result).hasSize(2);
         assertThat(result[0]).contains("one", "two", "three");
@@ -130,10 +131,33 @@ class FormServiceTest {
         String[] input = {"only"};
         int chunkSize = 1;
 
-        String[] result = FormService.chunkArray(input, chunkSize);
+        String[] result = FillFormService.chunkArray(input, chunkSize);
 
         assertThat(result).hasSize(1);
         assertThat(result[0]).isEqualTo("only");
+    }
+
+    @Test
+    @DisplayName("Should handle null array")
+    void shouldHandleNullArray() {
+        String[] result = FillFormService.chunkArray(null, 3);
+        assertThat(result).hasSize(0);
+    }
+
+    @Test
+    @DisplayName("Should handle empty array")
+    void shouldHandleEmptyArray() {
+        String[] input = {};
+        String[] result = FillFormService.chunkArray(input, 3);
+        assertThat(result).hasSize(0);
+    }
+
+    @Test
+    @DisplayName("Should handle invalid chunk size")
+    void shouldHandleInvalidChunkSize() {
+        String[] input = {"one", "two", "three"};
+        String[] result = FillFormService.chunkArray(input, 0);
+        assertThat(result).hasSize(0);
     }
 
     private File createTempJsonFile(String content) throws IOException {

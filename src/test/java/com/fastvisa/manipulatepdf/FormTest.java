@@ -18,15 +18,15 @@ class FormTest {
         Object pdfData = new Object();
         Object formData = new HashMap<>();
         String pdfTemplate = "/path/to/template.pdf";
-        Object structureInputs = Arrays.asList("input1", "input2");
+        Object customFields = Arrays.asList("input1", "input2");
         String urlDownload = "https://example.com/download.pdf";
 
-        Form form = new Form(pdfData, formData, pdfTemplate, structureInputs, urlDownload);
+        Form form = new Form(pdfData, formData, pdfTemplate, customFields, urlDownload);
 
         assertThat(form.pdfData()).isSameAs(pdfData);
         assertThat(form.formData()).isSameAs(formData);
         assertThat(form.templatePath()).isEqualTo(pdfTemplate);
-        assertThat(form.structureInputs()).isSameAs(structureInputs);
+        assertThat(form.customFields()).isSameAs(customFields);
         assertThat(form.getUrl()).isEqualTo(urlDownload);
     }
 
@@ -38,7 +38,7 @@ class FormTest {
         assertThat(form.pdfData()).isNull();
         assertThat(form.formData()).isNull();
         assertThat(form.templatePath()).isNull();
-        assertThat(form.structureInputs()).isNull();
+        assertThat(form.customFields()).isNull();
         assertThat(form.getUrl()).isNull();
     }
 
@@ -68,14 +68,14 @@ class FormTest {
     }
 
     @Test
-    @DisplayName("Should create Form with structure inputs array")
-    void shouldCreateFormWithStructureInputsArray() {
-        Object[] structureInputs = new Object[]{"input1", "input2", "input3"};
+    @DisplayName("Should create Form with custom fields array")
+    void shouldCreateFormWithCustomFieldsArray() {
+        Object[] customFields = new Object[]{"input1", "input2", "input3"};
 
-        Form form = new Form(null, null, "/template.pdf", structureInputs, "url");
+        Form form = new Form(null, null, "/template.pdf", customFields, "url");
 
-        assertThat(form.structureInputs()).isInstanceOf(Object[].class);
-        Object[] result = (Object[]) form.structureInputs();
+        assertThat(form.customFields()).isInstanceOf(Object[].class);
+        Object[] result = (Object[]) form.customFields();
         assertThat(result).hasSize(3);
     }
 }

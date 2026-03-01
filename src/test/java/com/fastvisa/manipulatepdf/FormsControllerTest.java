@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -33,7 +32,10 @@ class FormsControllerTest {
     private String projectVersion;
 
     @MockBean
-    private com.fastvisa.services.FormService formService;
+    private com.fastvisa.services.FillFormService fillFormService;
+
+    @MockBean
+    private com.fastvisa.services.CombineFormService combineFormService;
 
     @MockBean
     private com.fastvisa.services.ReceiptService receiptService;
