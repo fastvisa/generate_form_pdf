@@ -55,7 +55,6 @@ public class PdfUtilityService {
           // Get the redirect location
           String redirectUrl = connection.getHeaderField("Location");
           if (redirectUrl != null && !redirectUrl.isEmpty()) {
-            System.out.println("Redirecting to: " + redirectUrl);
             currentUrl = redirectUrl;
             redirectCount++;
             connection.disconnect();
