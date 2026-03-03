@@ -68,7 +68,7 @@ public class FormsController {
     uploadS3(file, output_name);
 
     Object customFieldsForResponse = gson.fromJson(gson.toJson(custom_fields), Object.class);
-    return new Form(new Object(), form_data, pdf_template, customFieldsForResponse, url_download);
+    return new Form(form_data, pdf_template, customFieldsForResponse, url_download);
   }
 
   @PostMapping(path = "/api/v1/combineform", consumes = "application/json", produces = "application/json")
@@ -88,7 +88,7 @@ public class FormsController {
 
     uploadS3(combined_file, combined_file_name);
 
-    return new Form(new Object(), new Object(), "", new Object(), url_download);
+    return new Form(null, "", null, url_download);
   }
 
 

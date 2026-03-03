@@ -75,16 +75,16 @@ public class FillFormService {
       PdfFormField field = form.getField(name);
       if (field != null) {
         PdfPage page = field.getWidgets().get(0).getPage();
-        Text text = new Text(value);
         PdfFont font = PdfFontFactory.createFont(StandardFonts.COURIER);
-        text.setFont(font).setFontSize((float) 10);
-        Paragraph p = new Paragraph(text).setFontColor(ColorConstants.BLACK);
-
         Rectangle fieldsRectInput = field.getWidgets().get(0).getRectangle().toRectangle();
         float inputDynamicFontSize = getDynamicFontSize(value, fieldsRectInput, font);
+
+        Text text = new Text(value).setFont(font).setFontSize(inputDynamicFontSize);
+        Paragraph p = new Paragraph(text).setFontColor(ColorConstants.BLACK);
+
         boolean inputIsMultiline = field.isMultiline();
 
-        if (inputIsMultiline == false) {
+        if (!inputIsMultiline) {
           fillFieldInput(pdf, form, name, value, pdf_template, page, p, inputDynamicFontSize, fieldsRectInput, font, false);
         } else {
           fillFieldMultiline(pdf, form, name, value, pdf_template, page, p, inputDynamicFontSize, fieldsRectInput, font);
@@ -119,11 +119,13 @@ public class FillFormService {
         float pageHeight = cfPage.getPageSize().getHeight();
         Float y = pageHeight - rawY - height;
         Rectangle fieldsRect = new Rectangle(rawX, y, width, height);
-        float dynamicFontSize = getDynamicFontSize(cfValue, fieldsRect, font);
-        Text cfText = new Text(cfValue).setFont(font).setFontSize((float) 10);
-        Paragraph cfParagraph = new Paragraph(cfText).setFontColor(ColorConstants.BLACK);
+        Paragraph cfParagraph = new Paragraph(cfValue)
+          .setFont(font)
+          .setFontSize(10)
+          .setFontColor(ColorConstants.BLACK)
+          .setFixedLeading(10);
 
-        fillFieldInput(pdf, form, cfName, cfValue, pdf_template, cfPage, cfParagraph, dynamicFontSize, fieldsRect, font, true);
+        fillFieldInput(pdf, form, cfName, cfValue, pdf_template, cfPage, cfParagraph, 10, fieldsRect, font, true);
       }
     }
 
@@ -245,6 +247,7 @@ public class FillFormService {
     boolean isCustomField
   ) throws IOException {
     if (isCustomField) {
+      System.out.println("Filling custom field " + name + " with value: " + value);
       addTextToCanvas(page, pdf, fieldsRect, p);
     }
     if (name.toLowerCase().contains("state")) {
@@ -292,7 +295,8 @@ public class FillFormService {
     float rectWidth = fieldsRect.getWidth();
     float stringWidth = font.getWidth(value);
     fontSize = Math.min(fontSize, (rectWidth - 3) / stringWidth);
-    return fontSize;
+    // never shrink to zero or negative; keep at least one point
+    return Math.max(fontSize, 1f);
   }
 
   public JSONArray getFormArray(Object form_data) throws IOException, java.text.ParseException, org.json.simple.parser.ParseException {

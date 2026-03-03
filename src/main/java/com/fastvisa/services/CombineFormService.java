@@ -38,9 +38,7 @@ public class CombineFormService {
       JSONObject innerObj = (JSONObject) i.next();
       Object form_data = innerObj.get("form_data");
       Object custom_fields = innerObj.get("custom_fields");
-      Object pdfTemplateObj = innerObj.get("pdf_template");
-      Object templatePathObj = innerObj.get("template_path");      
-      String pdf_template = (pdfTemplateObj != null) ? pdfTemplateObj.toString() : templatePathObj.toString();
+      String pdf_template = innerObj.get("template_path") == null ? null : innerObj.get("template_path").toString();
       String output_name = String.valueOf(timestamp.getTime()) + "_" + mergedPdfCount;
 
       File file = File.createTempFile(output_name, "pdf");
