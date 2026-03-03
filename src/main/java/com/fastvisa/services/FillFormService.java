@@ -119,11 +119,13 @@ public class FillFormService {
         float pageHeight = cfPage.getPageSize().getHeight();
         Float y = pageHeight - rawY - height;
         Rectangle fieldsRect = new Rectangle(rawX, y, width, height);
-        float dynamicFontSize = getDynamicFontSize(cfValue, fieldsRect, font);
-        Text cfText = new Text(cfValue).setFont(font).setFontSize(dynamicFontSize);
-        Paragraph cfParagraph = new Paragraph(cfText).setFontColor(ColorConstants.BLACK);
+        Paragraph cfParagraph = new Paragraph(cfValue)
+          .setFont(font)
+          .setFontSize(10)
+          .setFontColor(ColorConstants.BLACK)
+          .setFixedLeading(10);
 
-        fillFieldInput(pdf, form, cfName, cfValue, pdf_template, cfPage, cfParagraph, dynamicFontSize, fieldsRect, font, true);
+        fillFieldInput(pdf, form, cfName, cfValue, pdf_template, cfPage, cfParagraph, 10, fieldsRect, font, true);
       }
     }
 
@@ -245,6 +247,7 @@ public class FillFormService {
     boolean isCustomField
   ) throws IOException {
     if (isCustomField) {
+      System.out.println("Filling custom field " + name + " with value: " + value);
       addTextToCanvas(page, pdf, fieldsRect, p);
     }
     if (name.toLowerCase().contains("state")) {
