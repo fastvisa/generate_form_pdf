@@ -43,10 +43,16 @@ public class FillFormService {
   private Gson gson = new GsonBuilder().serializeNulls().create();
   private PdfUtilityService pdfUtilityService;
 
+  private static final float DPI_CONVERSION = 0.75f;
+  private static final float SCALE_ADJUSTMENT = 0.87f;
+
   public FillFormService() {
     this.pdfUtilityService = new PdfUtilityService();
   }
 
+  private float convertHtmlToPdf(float htmlValue) {
+    return htmlValue * DPI_CONVERSION * SCALE_ADJUSTMENT;
+  }
 
   public void fillForm(JSONArray form_array, String pdf_template, JSONArray custom_field_array, File file, String output_name) throws IOException {
     String output_file = file.getAbsolutePath();
@@ -112,20 +118,20 @@ public class FillFormService {
           } catch (NumberFormatException ignored) {}
         }
         PdfPage cfPage = pdf.getPage(pageNumber);
-        Float rawX = Float.valueOf(cfObj.get("x").toString()) * 0.75f * 0.87f;
-        Float rawY = Float.valueOf(cfObj.get("y").toString()) * 0.75f * 0.87f;
-        Float width = Float.valueOf(cfObj.get("width").toString()) * 0.75f * 0.87f;
-        Float height = Float.valueOf(cfObj.get("height").toString()) * 0.75f * 0.87f;
+        Float rawX = convertHtmlToPdf(Float.valueOf(cfObj.get("x").toString()));
+        Float rawY = convertHtmlToPdf(Float.valueOf(cfObj.get("y").toString()));
+        Float width = convertHtmlToPdf(Float.valueOf(cfObj.get("width").toString()));
+        Float height = convertHtmlToPdf(Float.valueOf(cfObj.get("height").toString()));
         float pageHeight = cfPage.getPageSize().getHeight();
         Float y = pageHeight - rawY - height;
         Rectangle fieldsRect = new Rectangle(rawX, y, width, height);
         Paragraph cfParagraph = new Paragraph(cfValue)
           .setFont(font)
-          .setFontSize(10)
+          .setFontSize(8)
           .setFontColor(ColorConstants.BLACK)
-          .setFixedLeading(10);
+          .setFixedLeading(8);
 
-        fillFieldInput(pdf, form, cfName, cfValue, pdf_template, cfPage, cfParagraph, 10, fieldsRect, font, true);
+        fillFieldInput(pdf, form, cfName, cfValue, pdf_template, cfPage, cfParagraph, 8, fieldsRect, font, true);
       }
     }
 
