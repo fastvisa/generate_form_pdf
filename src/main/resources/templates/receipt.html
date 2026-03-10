@@ -45,7 +45,7 @@
       position: absolute;
       bottom: 30px;
     }
-    .table-sm th, .table-sm td {
+    .table-sm th, .table-sm td{
       padding: .1rem;
     }
     h4 {
@@ -91,14 +91,15 @@
         <h6><span th:text="${receiptEntry.form_data.item.user_address}"></span></h6>
       </div>
       <div class="half p-3" th:unless="${receiptEntry.form_data.item.user_name != 'null'}"></div>
-      <div class="half p-3"><table class="table table-sm table-borderless vertical receipt-summary-table">
+      <div class="half p-3">
+        <table class="table table-sm table-borderless vertical receipt-summary-table">
           <tbody>
             <tr>
               <th>Date</th>
               <td><span th:text="${receiptEntry.form_data.item.created_at}"></span></td>
             </tr>
             <tr>
-              <th><span th:text="${receiptEntry.form_data.item.type}"></span>Number</th>
+              <th><span th:text="${receiptEntry.form_data.item.type}"></span> Number</th>
               <td><span th:text="${receiptEntry.form_data.item.id}"></span></td>
             </tr>
             <tr th:if="${receiptEntry.form_data.item.type == 'Payment' && receiptEntry.form_data.item.payment_method == 'Stripe'}">
@@ -141,7 +142,7 @@
             <td><span th:text="${receiptEntry.form_data.item.created_at}"></span></td>
             <td><span th:text="${receiptEntry.form_data.item.description}"></span></td>
             <td>
-              <span th:text="${receiptEntry.form_data.item.kind}"></span> -#<span th:text="${receiptEntry.form_data.item.id}"></span>
+              <span th:text="${receiptEntry.form_data.item.kind}"></span> - #<span th:text="${receiptEntry.form_data.item.id}"></span>
             </td>
             <td class="text-right text-danger" th:if="${receiptEntry.form_data.item.type == 'Invoice'}">
               $(<span th:text="${receiptEntry.form_data.item.amount}"></span>)
