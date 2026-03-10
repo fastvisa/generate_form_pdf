@@ -27,6 +27,20 @@
     table.vertical td {
       text-align: right;
     }
+    .receipt-summary-table {
+      width: 100%;
+      table-layout: fixed;
+    }
+    .receipt-summary-table th {
+      width: 50%;
+      white-space: normal;
+      overflow-wrap: break-word;
+    }
+    .receipt-summary-table td {
+      width: 50%;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
     .bottom {
       position: absolute;
       bottom: 30px;
@@ -44,6 +58,20 @@
       font-size: .9rem;
       margin-top: .3rem;
       margin-bottom: 0;
+    }
+    .stripe-payment-id-value {
+      display: block;
+      max-width: 100%;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-all;
+      line-height: 1.2;
+      max-height: 2.4em;
+      overflow: hidden;
+      display: -webkit-box;
+      line-clamp: 2;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
     }
   </style>
 </head>
@@ -64,7 +92,7 @@
       </div>
       <div class="half p-3" th:unless="${receiptEntry.form_data.item.user_name != 'null'}"></div>
       <div class="half p-3">
-        <table class="table table-sm table-borderless vertical">
+        <table class="table table-sm table-borderless vertical receipt-summary-table">
           <tbody>
             <tr>
               <th>Date</th>
@@ -73,6 +101,10 @@
             <tr>
               <th><span th:text="${receiptEntry.form_data.item.type}"></span> Number</th>
               <td><span th:text="${receiptEntry.form_data.item.id}"></span></td>
+            </tr>
+            <tr th:if="${receiptEntry.form_data.item.type == 'Payment' && receiptEntry.form_data.item.payment_method == 'Stripe'}">
+              <th>Stripe Payment ID</th>
+              <td><span class="stripe-payment-id-value" th:text="${receiptEntry.form_data.item.payment_id}"></span></td>
             </tr>
             <tr>
               <th>Case Number</th>
@@ -90,8 +122,8 @@
               <th>A/R Balance Due</th>
               <td>$<span th:text="${receiptEntry.form_data.item.ar_balance_due}"></span></td>
             </tr>
-        </tbody>
-      </table>
+          </tbody>
+        </table>
       </div>
     </div>
 
@@ -122,9 +154,6 @@
         </tbody>
       </table>
     </div>
-
-
   </div>
-
 </body>
 </html>
