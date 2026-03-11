@@ -83,17 +83,21 @@ public class FillFormService {
         PdfPage page = field.getWidgets().get(0).getPage();
         PdfFont font = PdfFontFactory.createFont(StandardFonts.COURIER);
         Rectangle fieldsRectInput = field.getWidgets().get(0).getRectangle().toRectangle();
+        boolean inputIsMultiline = field.isMultiline();
+
         float inputDynamicFontSize = getDynamicFontSize(value, fieldsRectInput, font);
+        if (inputIsMultiline) {
+          inputDynamicFontSize = getDynamicMultiLineFontSize(value, fieldsRectInput, font);
+        }
 
         Text text = new Text(value).setFont(font).setFontSize(inputDynamicFontSize);
         Paragraph p = new Paragraph(text).setFontColor(ColorConstants.BLACK);
 
-        boolean inputIsMultiline = field.isMultiline();
 
-        if (!inputIsMultiline) {
-          fillFieldInput(pdf, form, name, value, pdf_template, page, p, inputDynamicFontSize, fieldsRectInput, font, false);
-        } else {
+        if (inputIsMultiline) {
           fillFieldMultiline(pdf, form, name, value, pdf_template, page, p, inputDynamicFontSize, fieldsRectInput, font);
+        } else {
+          fillFieldInput(pdf, form, name, value, pdf_template, page, p, inputDynamicFontSize, fieldsRectInput, font, false);
         }
 
       }
@@ -165,78 +169,16 @@ public class FillFormService {
   ) throws IOException {
     // Skip creating new field and just use canvas for multiline text
     form.removeField(name);
+    float simulatedLeading = dynamicFontSize * 1.4f;
+
     if (pdf_template.toLowerCase().contains("n-648") && fieldsRect.getHeight() > 140) {
-      p.setFixedLeading((float) 15).setPaddingTop((float) -5);
+      p.setFixedLeading(simulatedLeading).setPaddingTop((float) -5);
     } else if (fieldsRect.getHeight() > 430 && fieldsRect.getHeight() < 660) {
-      p.setFixedLeading((float) 18).setPaddingTop((float) -6.5);
+      p.setFixedLeading(simulatedLeading).setPaddingTop((float) -6.5);
     } else {
-      p.setFixedLeading((float) 18).setPaddingTop(-5);
+      p.setFixedLeading(simulatedLeading).setPaddingTop(-5);
     }
     addTextToCanvas(page, pdf, fieldsRect, p);
-  }
-
-  private void fillCustomFieldMultiline(
-    PdfDocument pdf,
-    PdfAcroForm form,
-    String name,
-    String value,
-    String pdf_template,
-    PdfPage page,
-    Paragraph p,
-    float dynamicFontSize,
-    Rectangle fieldsRect,
-    PdfFont font,
-    int row
-  ) throws IOException {
-    Rectangle cellStaticRect = new Rectangle(fieldsRect.getX(), fieldsRect.getY(), fieldsRect.getWidth(), 14);
-    int page_number = pdf.getPageNumber(page);
-    form.removeField(name);
-    String[] splitted_array = value.split(" ", 0);
-    String[] value_array = chunkArray(splitted_array, row);
-    
-    // Check if value_array has enough elements for the specified row count
-    if (value_array == null || value_array.length < row) {
-      return;
-    }
-
-    Table table = new Table(1);
-    Cell cell;
-    for (int i = 0; i < row && i < value_array.length; i++) {
-      float cellDynamicFontSize = getDynamicFontSize(value_array[i], cellStaticRect, font);
-      cell = new Cell().add(new Paragraph(value_array[i]).setFontSize(cellDynamicFontSize).setFont(font));
-      cell.setHeight((float) 14);
-      cell.setBorder(Border.NO_BORDER)
-          .setVerticalAlignment(VerticalAlignment.MIDDLE);
-      table.addCell(cell);
-    }
-    table.setFixedPosition(page_number, fieldsRect.getLeft(), fieldsRect.getBottom(), fieldsRect.getWidth());
-    table.setBorder(Border.NO_BORDER);
-    Document doc = new Document(page.getDocument());
-    doc.add(table);
-  }
-
-  public static String[] chunkArray(String[] splitted_array, int chunkSize) {
-    if (splitted_array == null || chunkSize <= 0 || splitted_array.length == 0) {
-      return new String[0];
-    }
-    
-    int numOfChunks = (int) Math.ceil((double) splitted_array.length / chunkSize);
-    String[] output = new String[Math.min(chunkSize, numOfChunks)];
-
-    int index = 0;
-    for(int i = 0; i < splitted_array.length && index < output.length; i += numOfChunks) {
-      String[] chunk_array = java.util.Arrays.copyOfRange(splitted_array, i, Math.min(splitted_array.length, i + numOfChunks));
-      StringBuilder sb = new StringBuilder();
-      for(int s = 0; s < chunk_array.length; s++) {
-        sb.append(chunk_array[s]);
-        if (s < chunk_array.length - 1) {
-          sb.append(" ");
-        }
-      }
-      output[index++] = sb.toString();
-    }
-
-    return output;
   }
 
   private void fillFieldInput(
@@ -265,6 +207,7 @@ public class FillFormService {
       if (field != null) {
         if (field instanceof PdfTextFormField) {
           PdfTextFormField textField = (PdfTextFormField) field;
+          textField.setFontSize(dynamicFontSize);
           textField.setValue(value);
         }
         else if (field instanceof PdfButtonFormField) {
@@ -293,16 +236,77 @@ public class FillFormService {
   }
 
   private float getDynamicFontSize(String value, Rectangle fieldsRect, PdfFont font) {
-    float fontSize = 10;
+    float fontSize = 10f;
     int[] fontBox = font.getFontProgram().getFontMetrics().getBbox();
     int fontHeight = (fontBox[2] - fontBox[1]);
     float rectHeight = fieldsRect.getHeight();
     fontSize = Math.min(fontSize, rectHeight / fontHeight * FontProgram.UNITS_NORMALIZATION);
     float rectWidth = fieldsRect.getWidth();
-    float stringWidth = font.getWidth(value);
-    fontSize = Math.min(fontSize, (rectWidth - 3) / stringWidth);
+    float stringWidth = font.getWidth(value, 1f);
+    if (stringWidth > 0) {
+      fontSize = Math.min(fontSize, (rectWidth - 3) / stringWidth);
+    }
     // never shrink to zero or negative; keep at least one point
     return Math.max(fontSize, 1f);
+  }
+
+  private float getDynamicMultiLineFontSize(String value, Rectangle fieldsRect, PdfFont font) {
+    float maxFontSize = 10f; 
+    float minFontSize = 1f;  
+    float usableWidth = fieldsRect.getWidth() - 8f; 
+    float usableHeight = fieldsRect.getHeight() - 8f;
+
+    if (value == null || value.trim().isEmpty()) {
+      return maxFontSize;
+    }
+
+    String[] words = value.split("\\s+");
+    float spaceWidthAt1Pt = font.getWidth(" ", 1f);
+    float bestFontSize = minFontSize;
+    
+    // Binary search
+    for (int i = 0; i < 15; i++) {
+      float testSize = (minFontSize + maxFontSize) / 2f;
+      
+      if (doesTextFit(words, testSize, usableWidth, usableHeight, font, spaceWidthAt1Pt)) {
+        bestFontSize = testSize; // It fits! Try going bigger.
+        minFontSize = testSize;  
+      } else {
+        maxFontSize = testSize;  // Too big! Try going smaller.
+      }
+    }
+
+    float finalSize = (float) (Math.floor(bestFontSize * 10) / 10);
+    System.out.println("Final simulated multi-line font size: " + finalSize);
+    
+    return Math.max(finalSize, 1f);
+  }
+
+  private boolean doesTextFit(String[] words, float fontSize, float usableWidth, float usableHeight, PdfFont font, float spaceWidthAt1Pt) {
+    float lineHeight = fontSize * 1.3f; 
+    int lineCount = 1;
+    float currentLineWidth = 0f;
+
+    for (String word : words) {
+      float wordWidth = font.getWidth(word, 1f) * fontSize;
+      float spaceWidth = spaceWidthAt1Pt * fontSize;
+
+      if (wordWidth > usableWidth) {
+        return false; 
+      }
+
+      if (currentLineWidth == 0) {
+        currentLineWidth = wordWidth; 
+      } else if (currentLineWidth + spaceWidth + wordWidth > usableWidth) {
+        lineCount++;
+        currentLineWidth = wordWidth; 
+      } else {
+        currentLineWidth += spaceWidth + wordWidth; 
+      }
+    }
+
+    float totalHeight = lineCount * lineHeight;
+    return totalHeight <= usableHeight; 
   }
 
   public JSONArray getFormArray(Object form_data) throws IOException, java.text.ParseException, org.json.simple.parser.ParseException {
