@@ -80,6 +80,9 @@ public class FillFormService {
 
       PdfFormField field = form.getField(name);
       if (field != null) {
+        if (field.getWidgets() == null || field.getWidgets().isEmpty()) {
+          continue;
+        }
         PdfPage page = field.getWidgets().get(0).getPage();
         PdfFont font = PdfFontFactory.createFont(StandardFonts.COURIER);
         Rectangle fieldsRectInput = field.getWidgets().get(0).getRectangle().toRectangle();
