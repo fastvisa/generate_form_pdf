@@ -4,7 +4,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
+import com.itextpdf.html2pdf.ConverterProperties;
 import com.itextpdf.html2pdf.HtmlConverter;
+import com.itextpdf.io.font.constants.StandardFonts;
+import com.itextpdf.layout.font.FontProvider;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -34,16 +37,26 @@ public class ReceiptService {
       case "Addendum":
         context.setVariable("addendum", receipt);
         html = templateEngine.process("addendum", context);
+
+        FontProvider fontProvider = new FontProvider();
+        fontProvider.addFont(StandardFonts.COURIER);
+        fontProvider.addFont(StandardFonts.COURIER_BOLD);
+
+        ConverterProperties properties = new ConverterProperties();
+        properties.setFontProvider(fontProvider);
+
+        HtmlConverter.convertToPdf(html, file, properties);
         break;
+
       case "Receipt":
         context.setVariable("receiptEntry", receipt);
         html = templateEngine.process("receipt", context);
+        HtmlConverter.convertToPdf(html, file);
         break;
+
       default:
         break;
     }
-
-    HtmlConverter.convertToPdf(html, file);
   }
 
   public ITemplateResolver htmlTemplateResolver(){
