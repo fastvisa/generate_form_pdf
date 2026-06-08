@@ -111,6 +111,12 @@
 
 		<dependency>
 			<groupId>com.itextpdf</groupId>
+			<artifactId>bouncy-castle-adapter</artifactId>
+			<version>${itext.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.itextpdf</groupId>
 			<artifactId>html2pdf</artifactId>
 			<version>6.0.0</version>
 		</dependency>
