@@ -174,11 +174,14 @@ public class FillFormService {
     form.removeField(name);
     float simulatedLeading = dynamicFontSize * 1.4f;
 
-    // Erase pre-printed template lines within the field area
+    // Erase pre-printed template lines within the field area.
+    // saveState/restoreState (q...Q) scopes the white fill so it doesn't leak into the text canvas.
     PdfCanvas bgCanvas = new PdfCanvas(page);
-    bgCanvas.setFillColor(ColorConstants.WHITE)
+    bgCanvas.saveState()
+            .setFillColor(ColorConstants.WHITE)
             .rectangle(fieldsRect)
-            .fill();
+            .fill()
+            .restoreState();
     bgCanvas.release();
 
     if (pdf_template.toLowerCase().contains("n-648") && fieldsRect.getHeight() > 140) {
@@ -242,7 +245,6 @@ public class FillFormService {
       cvs.add(p);
       pdf = cvs.getPdfDocument();
     }
-    canvas.rectangle(fieldsRect);
   }
 
   private float getDynamicFontSize(String value, Rectangle fieldsRect, PdfFont font) {
