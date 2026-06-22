@@ -319,7 +319,7 @@ public class FillFormService {
       lineCount++; // end of this explicit line
     }
 
-    return (lineCount * lineHeight) <= usableHeight;
+    return (lineCount * lineHeight) <= (usableHeight - lineHeight);
   }
 
   public JSONArray getFormArray(Object form_data) throws IOException, java.text.ParseException, org.json.simple.parser.ParseException {
