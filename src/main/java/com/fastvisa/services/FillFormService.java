@@ -235,7 +235,6 @@ public class FillFormService {
       cvs.add(p);
       pdf = cvs.getPdfDocument();
     }
-    canvas.rectangle(fieldsRect);
   }
 
   private float getDynamicFontSize(String value, Rectangle fieldsRect, PdfFont font) {
@@ -263,17 +262,17 @@ public class FillFormService {
       return maxFontSize;
     }
 
-    String[] words = value.split("\\s+");
+    String[] lines = value.split("\n", -1);
     float spaceWidthAt1Pt = font.getWidth(" ", 1f);
     float bestFontSize = minFontSize;
-    
+
     // Binary search
     for (int i = 0; i < 15; i++) {
       float testSize = (minFontSize + maxFontSize) / 2f;
-      
-      if (doesTextFit(words, testSize, usableWidth, usableHeight, font, spaceWidthAt1Pt)) {
+
+      if (doesTextFitWithNewlines(lines, testSize, usableWidth, usableHeight, font, spaceWidthAt1Pt)) {
         bestFontSize = testSize; // It fits! Try going bigger.
-        minFontSize = testSize;  
+        minFontSize = testSize;
       } else {
         maxFontSize = testSize;  // Too big! Try going smaller.
       }
@@ -285,31 +284,42 @@ public class FillFormService {
     return Math.max(finalSize, 1f);
   }
 
-  private boolean doesTextFit(String[] words, float fontSize, float usableWidth, float usableHeight, PdfFont font, float spaceWidthAt1Pt) {
-    float lineHeight = fontSize * 1.3f; 
-    int lineCount = 1;
-    float currentLineWidth = 0f;
+  private boolean doesTextFitWithNewlines(String[] lines, float fontSize, float usableWidth, float usableHeight, PdfFont font, float spaceWidthAt1Pt) {
+    float lineHeight = fontSize * 1.4f; // match rendering leading
+    int lineCount = 0;
 
-    for (String word : words) {
-      float wordWidth = font.getWidth(word, 1f) * fontSize;
-      float spaceWidth = spaceWidthAt1Pt * fontSize;
-
-      if (wordWidth > usableWidth) {
-        return false; 
-      }
-
-      if (currentLineWidth == 0) {
-        currentLineWidth = wordWidth; 
-      } else if (currentLineWidth + spaceWidth + wordWidth > usableWidth) {
+    for (String line : lines) {
+      if (line.trim().isEmpty()) {
         lineCount++;
-        currentLineWidth = wordWidth; 
-      } else {
-        currentLineWidth += spaceWidth + wordWidth; 
+        continue;
       }
+      String[] words = line.split("\\s+");
+      float currentLineWidth = 0f;
+      boolean firstWord = true;
+
+      for (String word : words) {
+        if (word.isEmpty()) continue;
+        float wordWidth = font.getWidth(word, 1f) * fontSize;
+        float spaceWidth = spaceWidthAt1Pt * fontSize;
+
+        if (wordWidth > usableWidth) {
+          return false;
+        }
+
+        if (firstWord) {
+          currentLineWidth = wordWidth;
+          firstWord = false;
+        } else if (currentLineWidth + spaceWidth + wordWidth > usableWidth) {
+          lineCount++;
+          currentLineWidth = wordWidth;
+        } else {
+          currentLineWidth += spaceWidth + wordWidth;
+        }
+      }
+      lineCount++; // end of this explicit line
     }
 
-    float totalHeight = lineCount * lineHeight;
-    return totalHeight <= usableHeight; 
+    return (lineCount * lineHeight) <= (usableHeight - lineHeight);
   }
 
   public JSONArray getFormArray(Object form_data) throws IOException, java.text.ParseException, org.json.simple.parser.ParseException {

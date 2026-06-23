@@ -5,7 +5,9 @@ cd "$SCRIPT_DIR"
 
 # Load environment variables from .env file if it exists
 if [ -f .env ]; then
-    export $(cat .env | grep -v '^#' | xargs)
+    set -a
+    source .env
+    set +a
 fi
 
 export SERVER_PORT=8080
