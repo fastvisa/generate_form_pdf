@@ -44,11 +44,17 @@ public class CombineFormService {
       File file = File.createTempFile(output_name, "pdf");
 
       try {
+        Object extra_pages_raw = innerObj.get("extra_pages");
+        JSONArray extra_pages_array = null;
+        if (extra_pages_raw != null) {
+          extra_pages_array = fillFormService.getFormArray(extra_pages_raw);
+        }
+
         if (form_data != null) {
           form_array = fillFormService.getFormArray(form_data);
           custom_field_array = fillFormService.getCustomFieldsArray(custom_fields);
           System.out.println("Filling form with " + form_array.size() + " fields");
-          fillFormService.fillForm(form_array, pdf_template, custom_field_array, file, output_name);
+          file = fillFormService.fillFormWithExtras(form_array, pdf_template, custom_field_array, extra_pages_array, output_name);
         } else {
           System.out.println("No form data, copying template as-is");
           String actualPdfPath = pdfUtilityService.getPdfTemplatePath(pdf_template);
