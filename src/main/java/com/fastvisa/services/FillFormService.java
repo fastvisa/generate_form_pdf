@@ -37,7 +37,9 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.yaml.snakeyaml.util.UriEncoder;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 public class FillFormService {
   
@@ -334,30 +336,43 @@ public class FillFormService {
       return mainFile;
     }
 
+    // Pre-generate all extra page PDFs
+    List<File> epFiles = new ArrayList<>();
+    int dupPage = 1;
+    for (Object ep : extraPages) {
+      JSONObject epObj = (JSONObject) ep;
+      JSONArray epFormArray = getFormArray(epObj.get("form_data"));
+      String epTemplate = epObj.get("template_path").toString();
+      dupPage = epObj.get("duplicatable_page") != null
+          ? ((Long) epObj.get("duplicatable_page")).intValue() : 1;
+
+      File epFile = File.createTempFile(outputName + "_ep", ".pdf");
+      fillForm(epFormArray, epTemplate, new JSONArray(), epFile, outputName + "_ep");
+      epFiles.add(epFile);
+    }
+
+    // Build combined PDF: main[1..dupPage] + extra pages + main[dupPage+1..end]
     File combinedFile = File.createTempFile(outputName + "_combined", ".pdf");
     PdfDocument combined = new PdfDocument(new PdfWriter(combinedFile.getAbsolutePath()));
     PdfMerger merger = new PdfMerger(combined);
 
     PdfDocument mainSrc = new PdfDocument(new PdfReader(mainFile));
-    merger.merge(mainSrc, 1, mainSrc.getNumberOfPages());
-    mainSrc.close();
+    int totalMainPages = mainSrc.getNumberOfPages();
 
-    for (Object ep : extraPages) {
-      JSONObject epObj = (JSONObject) ep;
-      JSONArray epFormArray = getFormArray(epObj.get("form_data"));
-      String epTemplate = epObj.get("template_path").toString();
-      int dupPage = epObj.get("duplicatable_page") != null
-          ? ((Long) epObj.get("duplicatable_page")).intValue() : 1;
+    merger.merge(mainSrc, 1, dupPage);
 
-      File epFile = File.createTempFile(outputName + "_ep", ".pdf");
-      fillForm(epFormArray, epTemplate, new JSONArray(), epFile, outputName + "_ep");
-
+    for (File epFile : epFiles) {
       PdfDocument epSrc = new PdfDocument(new PdfReader(epFile));
       merger.merge(epSrc, dupPage, dupPage);
       epSrc.close();
       epFile.delete();
     }
 
+    if (dupPage < totalMainPages) {
+      merger.merge(mainSrc, dupPage + 1, totalMainPages);
+    }
+
+    mainSrc.close();
     combined.close();
     mainFile.delete();
     return combinedFile;
