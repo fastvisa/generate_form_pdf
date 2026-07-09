@@ -20,6 +20,7 @@ import com.itextpdf.kernel.geom.Rectangle;
 import com.itextpdf.kernel.pdf.PdfDictionary;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfName;
+import com.itextpdf.kernel.utils.PdfMerger;
 import com.itextpdf.kernel.pdf.PdfPage;
 import com.itextpdf.kernel.pdf.PdfReader;
 import com.itextpdf.kernel.pdf.PdfWriter;
@@ -36,7 +37,11 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.yaml.snakeyaml.util.UriEncoder;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 public class FillFormService {
   
@@ -320,6 +325,64 @@ public class FillFormService {
     }
 
     return (lineCount * lineHeight) <= (usableHeight - lineHeight);
+  }
+
+  public File fillFormWithExtras(
+      JSONArray formArray, String pdfTemplate, JSONArray customFields,
+      JSONArray extraPages, String outputName
+  ) throws Exception {
+    File mainFile = File.createTempFile(outputName + "_main", ".pdf");
+    fillForm(formArray, pdfTemplate, customFields, mainFile, outputName);
+
+    if (extraPages == null || extraPages.isEmpty()) {
+      return mainFile;
+    }
+
+    // Pre-generate all extra page PDFs, grouped by their own duplicatable_page
+    Map<Integer, List<File>> epFilesByPage = new TreeMap<>();
+    for (Object ep : extraPages) {
+      JSONObject epObj = (JSONObject) ep;
+      JSONArray epFormArray = getFormArray(epObj.get("form_data"));
+      String epTemplate = epObj.get("template_path").toString();
+      int dupPage = epObj.get("duplicatable_page") != null
+          ? ((Long) epObj.get("duplicatable_page")).intValue() : 1;
+
+      File epFile = File.createTempFile(outputName + "_ep", ".pdf");
+      fillForm(epFormArray, epTemplate, new JSONArray(), epFile, outputName + "_ep");
+      epFilesByPage.computeIfAbsent(dupPage, k -> new ArrayList<>()).add(epFile);
+    }
+
+    // Build combined PDF, splicing each group of extra pages in after its own source page
+    File combinedFile = File.createTempFile(outputName + "_combined", ".pdf");
+    PdfDocument combined = new PdfDocument(new PdfWriter(combinedFile.getAbsolutePath()));
+    PdfMerger merger = new PdfMerger(combined);
+
+    PdfDocument mainSrc = new PdfDocument(new PdfReader(mainFile));
+    int totalMainPages = mainSrc.getNumberOfPages();
+
+    int cursor = 1;
+    for (Map.Entry<Integer, List<File>> group : epFilesByPage.entrySet()) {
+      int dupPage = group.getKey();
+      merger.merge(mainSrc, cursor, dupPage);
+
+      for (File epFile : group.getValue()) {
+        PdfDocument epSrc = new PdfDocument(new PdfReader(epFile));
+        merger.merge(epSrc, dupPage, dupPage);
+        epSrc.close();
+        epFile.delete();
+      }
+
+      cursor = dupPage + 1;
+    }
+
+    if (cursor <= totalMainPages) {
+      merger.merge(mainSrc, cursor, totalMainPages);
+    }
+
+    mainSrc.close();
+    combined.close();
+    mainFile.delete();
+    return combinedFile;
   }
 
   public JSONArray getFormArray(Object form_data) throws IOException, java.text.ParseException, org.json.simple.parser.ParseException {

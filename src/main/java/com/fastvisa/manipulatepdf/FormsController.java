@@ -61,9 +61,13 @@ public class FormsController {
     form_array = fillFormService.getFormArray(form_data);
     custom_field_array = fillFormService.getCustomFieldsArray(custom_fields);
 
-    File file = File.createTempFile(output_name, "pdf");
+    Object extra_pages_raw = convertedObject.get("extra_pages");
+    JSONArray extra_pages_array = null;
+    if (extra_pages_raw != null) {
+      extra_pages_array = fillFormService.getFormArray(extra_pages_raw);
+    }
 
-    fillFormService.fillForm(form_array, pdf_template, custom_field_array, file, output_name);
+    File file = fillFormService.fillFormWithExtras(form_array, pdf_template, custom_field_array, extra_pages_array, output_name);
 
     uploadS3(file, output_name);
 
