@@ -89,7 +89,7 @@ public class FillFormService {
           continue;
         }
         PdfPage page = field.getWidgets().get(0).getPage();
-        PdfFont font = PdfFontFactory.createFont(StandardFonts.COURIER);
+        PdfFont font = PdfFontFactory.createFont(StandardFonts.COURIER_BOLD);
         Rectangle fieldsRectInput = field.getWidgets().get(0).getRectangle().toRectangle();
         boolean inputIsMultiline = field.isMultiline();
 
@@ -111,7 +111,7 @@ public class FillFormService {
       }
     }
     if (custom_field_array != null) {
-      PdfFont font = PdfFontFactory.createFont(StandardFonts.COURIER);
+      PdfFont font = PdfFontFactory.createFont(StandardFonts.COURIER_BOLD);
       Iterator<?> cfIter = custom_field_array.iterator();
       while (cfIter.hasNext()) {
         Object o = cfIter.next();
