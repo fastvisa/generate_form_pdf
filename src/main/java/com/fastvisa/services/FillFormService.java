@@ -215,6 +215,7 @@ public class FillFormService {
       if (field != null) {
         if (field instanceof PdfTextFormField) {
           PdfTextFormField textField = (PdfTextFormField) field;
+          textField.setFont(font);
           textField.setFontSize(dynamicFontSize);
           textField.setValue(value);
         }
