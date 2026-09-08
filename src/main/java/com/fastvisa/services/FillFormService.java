@@ -16,10 +16,18 @@ import com.itextpdf.io.font.constants.StandardFonts;
 import com.itextpdf.kernel.colors.ColorConstants;
 import com.itextpdf.kernel.font.PdfFont;
 import com.itextpdf.kernel.font.PdfFontFactory;
+import com.itextpdf.kernel.geom.Matrix;
+import com.itextpdf.kernel.geom.Point;
 import com.itextpdf.kernel.geom.Rectangle;
+import com.itextpdf.kernel.geom.Subpath;
 import com.itextpdf.kernel.pdf.PdfDictionary;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfName;
+import com.itextpdf.kernel.pdf.canvas.parser.EventType;
+import com.itextpdf.kernel.pdf.canvas.parser.PdfCanvasProcessor;
+import com.itextpdf.kernel.pdf.canvas.parser.data.IEventData;
+import com.itextpdf.kernel.pdf.canvas.parser.data.PathRenderInfo;
+import com.itextpdf.kernel.pdf.canvas.parser.listener.IEventListener;
 import com.itextpdf.kernel.utils.PdfMerger;
 import com.itextpdf.kernel.pdf.PdfPage;
 import com.itextpdf.kernel.pdf.PdfReader;
@@ -39,17 +47,27 @@ import org.json.simple.parser.JSONParser;
 import org.yaml.snakeyaml.util.UriEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 public class FillFormService {
-  
+
   private Gson gson = new GsonBuilder().serializeNulls().create();
   private PdfUtilityService pdfUtilityService;
 
   private static final float DPI_CONVERSION = 0.75f;
   private static final float SCALE_ADJUSTMENT = 0.87f;
+
+  // Multiline text is drawn on canvas at this base size's line height, regardless of how far
+  // the font auto-shrinks to fit width - otherwise the line spacing shrinks with long text and
+  // drifts away from the template's fixed, pre-printed ruled lines the longer the field's value is.
+  private static final float MULTILINE_BASE_FONT_SIZE = 10f;
+  private static final float MULTILINE_LEADING_FACTOR = 1.4f;
+  private static final float MULTILINE_LINE_HEIGHT = MULTILINE_BASE_FONT_SIZE * MULTILINE_LEADING_FACTOR;
 
   public FillFormService() {
     this.pdfUtilityService = new PdfUtilityService();
@@ -61,16 +79,17 @@ public class FillFormService {
 
   public void fillForm(JSONArray form_array, String pdf_template, JSONArray custom_field_array, File file, String output_name) throws IOException {
     String output_file = file.getAbsolutePath();
-    
     // Handle URL-based templates by downloading them first
     String actualPdfPath = pdfUtilityService.getPdfTemplatePath(pdf_template);
-    
     PdfReader reader = new PdfReader(actualPdfPath);
     reader.setUnethicalReading(true);
     PdfDocument pdf = new PdfDocument(reader, new PdfWriter(output_file));
     removeUsageRights(pdf);
 
     PdfAcroForm form = PdfAcroForm.getAcroForm(pdf, true);
+    // Parsing a page's content stream for ruled-line candidates is done once per page and reused
+    // across every multiline field on that page, instead of re-parsing per field.
+    Map<PdfPage, List<float[]>> ruledLineCandidatesByPage = new HashMap<>();
 
     Iterator<?> i = form_array.iterator();
     while (i.hasNext()) {
@@ -93,9 +112,18 @@ public class FillFormService {
         Rectangle fieldsRectInput = field.getWidgets().get(0).getRectangle().toRectangle();
         boolean inputIsMultiline = field.isMultiline();
 
+        float multilineLineHeight = MULTILINE_LINE_HEIGHT;
+        if (inputIsMultiline) {
+          List<float[]> candidates = ruledLineCandidatesByPage.computeIfAbsent(page, this::findThinWideShapes);
+          Float detectedSpacing = detectRuledLineSpacing(candidates, fieldsRectInput);
+          if (detectedSpacing != null) {
+            multilineLineHeight = detectedSpacing;
+          }
+        }
+
         float inputDynamicFontSize = getDynamicFontSize(value, fieldsRectInput, font);
         if (inputIsMultiline) {
-          inputDynamicFontSize = getDynamicMultiLineFontSize(value, fieldsRectInput, font);
+          inputDynamicFontSize = getDynamicMultiLineFontSize(value, fieldsRectInput, font, multilineLineHeight);
         }
 
         Text text = new Text(value).setFont(font).setFontSize(inputDynamicFontSize);
@@ -103,7 +131,7 @@ public class FillFormService {
 
 
         if (inputIsMultiline) {
-          fillFieldMultiline(pdf, form, name, value, pdf_template, page, p, inputDynamicFontSize, fieldsRectInput, font);
+          fillFieldMultiline(pdf, form, name, value, pdf_template, page, p, inputDynamicFontSize, fieldsRectInput, font, multilineLineHeight);
         } else {
           fillFieldInput(pdf, form, name, value, pdf_template, page, p, inputDynamicFontSize, fieldsRectInput, font, false);
         }
@@ -173,11 +201,12 @@ public class FillFormService {
     Paragraph p,
     float dynamicFontSize,
     Rectangle fieldsRect,
-    PdfFont font
+    PdfFont font,
+    float lineHeight
   ) throws IOException {
     // Skip creating new field and just use canvas for multiline text
     form.removeField(name);
-    float simulatedLeading = dynamicFontSize * 1.4f;
+    float simulatedLeading = lineHeight;
 
     if (pdf_template.toLowerCase().contains("n-648") && fieldsRect.getHeight() > 140) {
       p.setFixedLeading(simulatedLeading).setPaddingTop((float) -5);
@@ -235,6 +264,132 @@ public class FillFormService {
     }
   }
 
+  // Scans a page's content stream once for thin shapes (stroked lines or filled bars) of any
+  // width - candidate ruled lines. Cached per page (see ruledLineCandidatesByPage in fillForm) so
+  // a page with several multiline fields only pays for content-stream parsing once, not per field.
+  // Each candidate is {loX, hiX, midY}.
+  private List<float[]> findThinWideShapes(PdfPage page) {
+    final List<float[]> candidates = new ArrayList<>();
+    final float maxRuleThickness = 2f;
+
+    IEventListener listener = new IEventListener() {
+      @Override
+      public void eventOccurred(IEventData data, EventType type) {
+        if (type != EventType.RENDER_PATH) {
+          return;
+        }
+        PathRenderInfo renderInfo = (PathRenderInfo) data;
+        if (renderInfo.getOperation() == PathRenderInfo.NO_OP) {
+          return;
+        }
+        Matrix ctm = renderInfo.getCtm();
+        for (Subpath subpath : renderInfo.getPath().getSubpaths()) {
+          List<Point> points = subpath.getPiecewiseLinearApproximation();
+          if (points.size() < 2) {
+            continue;
+          }
+          float loX = Float.MAX_VALUE;
+          float hiX = -Float.MAX_VALUE;
+          float loY = Float.MAX_VALUE;
+          float hiY = -Float.MAX_VALUE;
+          for (Point pt : points) {
+            Point transformed = transformPoint(pt, ctm);
+            loX = Math.min(loX, (float) transformed.getX());
+            hiX = Math.max(hiX, (float) transformed.getX());
+            loY = Math.min(loY, (float) transformed.getY());
+            hiY = Math.max(hiY, (float) transformed.getY());
+          }
+          if ((hiY - loY) > maxRuleThickness) {
+            continue;
+          }
+          candidates.add(new float[] { loX, hiX, (loY + hiY) / 2f });
+        }
+      }
+
+      @Override
+      public Set<EventType> getSupportedEvents() {
+        return Collections.singleton(EventType.RENDER_PATH);
+      }
+    };
+
+    new PdfCanvasProcessor(listener).processPageContent(page);
+    return candidates;
+  }
+
+  // Filters a page's pre-computed candidate shapes down to the ones that sit inside the given
+  // field's rectangle - the pre-printed ruled lines of that field - and returns the median
+  // vertical spacing between them. Returns null when no consistent set of ruled lines is found,
+  // so the caller can fall back to the MULTILINE_LINE_HEIGHT default.
+  private Float detectRuledLineSpacing(List<float[]> candidates, Rectangle fieldsRect) {
+    final float minX = fieldsRect.getLeft();
+    final float maxX = fieldsRect.getRight();
+    final float minY = fieldsRect.getBottom() - 2f;
+    final float maxY = fieldsRect.getTop() + 2f;
+    final float minRuleWidth = fieldsRect.getWidth() * 0.5f;
+
+    List<Float> ruleYs = new ArrayList<>();
+    for (float[] c : candidates) {
+      float loX = c[0];
+      float hiX = c[1];
+      float midY = c[2];
+      if ((hiX - loX) < minRuleWidth) {
+        continue;
+      }
+      if (midY < minY || midY > maxY || hiX < minX || loX > maxX) {
+        continue;
+      }
+      ruleYs.add(midY);
+    }
+
+    if (ruleYs.isEmpty()) {
+      return null;
+    }
+    Collections.sort(ruleYs);
+    List<Float> dedup = new ArrayList<>();
+    for (float y : ruleYs) {
+      if (dedup.isEmpty() || Math.abs(y - dedup.get(dedup.size() - 1)) > 1f) {
+        dedup.add(y);
+      }
+    }
+    // Need at least 3 detected rules so the median gap is meaningful, not a single guess.
+    if (dedup.size() < 3) {
+      return null;
+    }
+
+    List<Float> gaps = new ArrayList<>();
+    for (int idx = 1; idx < dedup.size(); idx++) {
+      gaps.add(dedup.get(idx) - dedup.get(idx - 1));
+    }
+    List<Float> sortedGaps = new ArrayList<>(gaps);
+    Collections.sort(sortedGaps);
+    float median = sortedGaps.get(sortedGaps.size() / 2);
+    if (median <= 0f) {
+      return null;
+    }
+
+    // Require most gaps to agree with the median before trusting it - otherwise what we detected
+    // is unlikely to be an evenly-spaced ruled grid (could be unrelated borders/underlines).
+    int consistent = 0;
+    for (float g : gaps) {
+      if (Math.abs(g - median) <= median * 0.25f) {
+        consistent++;
+      }
+    }
+    if (consistent < gaps.size() * 0.6f) {
+      return null;
+    }
+
+    return median;
+  }
+
+  private static Point transformPoint(Point p, Matrix m) {
+    double x = p.getX();
+    double y = p.getY();
+    double newX = x * m.get(Matrix.I11) + y * m.get(Matrix.I21) + m.get(Matrix.I31);
+    double newY = x * m.get(Matrix.I12) + y * m.get(Matrix.I22) + m.get(Matrix.I32);
+    return new Point(newX, newY);
+  }
+
   private void addTextToCanvas(PdfPage page, PdfDocument pdf, Rectangle fieldsRect, Paragraph p) {
     PdfCanvas canvas = new PdfCanvas(page);
     try (Canvas cvs = new Canvas(canvas, fieldsRect)) {
@@ -258,10 +413,10 @@ public class FillFormService {
     return Math.max(fontSize, 1f);
   }
 
-  private float getDynamicMultiLineFontSize(String value, Rectangle fieldsRect, PdfFont font) {
-    float maxFontSize = 10f; 
-    float minFontSize = 1f;  
-    float usableWidth = fieldsRect.getWidth() - 8f; 
+  private float getDynamicMultiLineFontSize(String value, Rectangle fieldsRect, PdfFont font, float lineHeight) {
+    float maxFontSize = MULTILINE_BASE_FONT_SIZE;
+    float minFontSize = 1f;
+    float usableWidth = fieldsRect.getWidth() - 8f;
     float usableHeight = fieldsRect.getHeight() - 8f;
 
     if (value == null || value.trim().isEmpty()) {
@@ -276,7 +431,7 @@ public class FillFormService {
     for (int i = 0; i < 15; i++) {
       float testSize = (minFontSize + maxFontSize) / 2f;
 
-      if (doesTextFitWithNewlines(lines, testSize, usableWidth, usableHeight, font, spaceWidthAt1Pt)) {
+      if (doesTextFitWithNewlines(lines, testSize, usableWidth, usableHeight, font, spaceWidthAt1Pt, lineHeight)) {
         bestFontSize = testSize; // It fits! Try going bigger.
         minFontSize = testSize;
       } else {
@@ -290,8 +445,7 @@ public class FillFormService {
     return Math.max(finalSize, 1f);
   }
 
-  private boolean doesTextFitWithNewlines(String[] lines, float fontSize, float usableWidth, float usableHeight, PdfFont font, float spaceWidthAt1Pt) {
-    float lineHeight = fontSize * 1.4f; // match rendering leading
+  private boolean doesTextFitWithNewlines(String[] lines, float fontSize, float usableWidth, float usableHeight, PdfFont font, float spaceWidthAt1Pt, float lineHeight) {
     int lineCount = 0;
 
     for (String line : lines) {
