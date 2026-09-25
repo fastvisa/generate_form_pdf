@@ -479,7 +479,7 @@ public class FillFormService {
       lineCount++; // end of this explicit line
     }
 
-    return (lineCount * lineHeight) <= (usableHeight - lineHeight);
+    return (lineCount * lineHeight) <= usableHeight;
   }
 
   public File fillFormWithExtras(
