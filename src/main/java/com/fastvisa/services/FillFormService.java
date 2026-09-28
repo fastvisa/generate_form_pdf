@@ -119,6 +119,13 @@ public class FillFormService {
           if (detectedSpacing != null) {
             multilineLineHeight = detectedSpacing;
           }
+          // A value with more explicit line breaks than the field can hold at this lineHeight
+          // would make the fit-check permanently impossible regardless of font size (lineHeight
+          // isn't tied to font size) and collapse the font to the 1pt floor. Tighten the leading
+          // to whatever the forced line count needs instead, so those lines still render at a
+          // legible size - e.g. the browser's own textarea preview for this same field shows the
+          // forced line break as two normal-sized lines, not one shrunk line.
+          multilineLineHeight = tightenLineHeightForForcedLines(value, fieldsRectInput.getHeight() - 8f, multilineLineHeight);
         }
 
         float inputDynamicFontSize = getDynamicFontSize(value, fieldsRectInput, font);
@@ -413,6 +420,24 @@ public class FillFormService {
     return Math.max(fontSize, 1f);
   }
 
+  // lineHeight is fixed (either the default or a detected ruled-line spacing), not tied to font
+  // size, so a value whose explicit line breaks alone need more lines than the field can hold at
+  // that lineHeight makes the fit-check in doesTextFitWithNewlines impossible at any font size -
+  // it always falls back to the 1pt floor. When that happens, tighten the leading to exactly what
+  // the forced line count needs so those lines can still render at a legible size, instead of
+  // discarding the line breaks or collapsing the font.
+  private float tightenLineHeightForForcedLines(String value, float usableHeight, float lineHeight) {
+    if (value == null || (value.indexOf('\n') < 0 && value.indexOf('\r') < 0)) {
+      return lineHeight;
+    }
+    String normalized = value.replace("\r\n", "\n").replace('\r', '\n');
+    int forcedLines = normalized.split("\n", -1).length;
+    if (forcedLines <= 1 || forcedLines * lineHeight <= usableHeight) {
+      return lineHeight;
+    }
+    return usableHeight / forcedLines;
+  }
+
   private float getDynamicMultiLineFontSize(String value, Rectangle fieldsRect, PdfFont font, float lineHeight) {
     float maxFontSize = MULTILINE_BASE_FONT_SIZE;
     float minFontSize = 1f;
@@ -479,7 +504,7 @@ public class FillFormService {
       lineCount++; // end of this explicit line
     }
 
-    return (lineCount * lineHeight) <= (usableHeight - lineHeight);
+    return (lineCount * lineHeight) <= usableHeight;
   }
 
   public File fillFormWithExtras(

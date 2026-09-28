@@ -1,5 +1,10 @@
 package com.fastvisa.services;
 
+import com.itextpdf.io.font.constants.StandardFonts;
+import com.itextpdf.kernel.font.PdfFont;
+import com.itextpdf.kernel.font.PdfFontFactory;
+import com.itextpdf.kernel.geom.Rectangle;
+
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -10,6 +15,7 @@ import org.junit.jupiter.api.BeforeEach;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -82,6 +88,50 @@ class FillFormServiceTest {
         JSONObject field = (JSONObject) result.get(0);
         assertThat(field.get("field_name")).isEqualTo("field1");
         assertThat(field.get("x")).isEqualTo(100L);
+    }
+
+    @Test
+    @DisplayName("Should not collapse font for short text in short multiline field")
+    void shouldNotCollapseFontForShortTextInShortMultilineField() throws Exception {
+        // Real rect of I-914 Supp A field pEWhyCharged1 (174.21 x 28.346pt, ~2 lines)
+        Rectangle rect = new Rectangle(54f, 320.899f, 174.21f, 28.346f);
+        PdfFont font = PdfFontFactory.createFont(StandardFonts.COURIER_BOLD);
+
+        Method method = FillFormService.class.getDeclaredMethod(
+            "getDynamicMultiLineFontSize", String.class, Rectangle.class, PdfFont.class, float.class);
+        method.setAccessible(true);
+        float fontSize = (float) method.invoke(fillFormService, "Theft", rect, font, 14f);
+
+        assertThat(fontSize).isGreaterThan(4f);
+    }
+
+    @Test
+    @DisplayName("Should tighten leading, not collapse font, when a value's forced line breaks don't fit the default leading")
+    void shouldTightenLeadingForUnfittableLineBreaksInShortMultilineField() throws Exception {
+        // Real rect of I-914 Supp A field pEOutcome1 (121.93 x 28.346pt, ~1 line at the default
+        // 14pt leading). A value with an embedded newline (e.g. the user pressed Enter, as the
+        // browser's own textarea preview for this field shows) forces 2 lines, which this field
+        // can never hold at the default leading no matter how small the font gets. fillForm()
+        // tightens the leading to fit those forced lines instead of collapsing the font.
+        Rectangle rect = new Rectangle(54f, 320.899f, 121.93f, 28.346f);
+        PdfFont font = PdfFontFactory.createFont(StandardFonts.COURIER_BOLD);
+        float defaultLineHeight = 14f;
+        String value = "no charges filed,\ncharges dismissed, jail";
+
+        Method tighten = FillFormService.class.getDeclaredMethod(
+            "tightenLineHeightForForcedLines", String.class, float.class, float.class);
+        tighten.setAccessible(true);
+        float tightenedLineHeight = (float) tighten.invoke(
+            fillFormService, value, rect.getHeight() - 8f, defaultLineHeight);
+        assertThat(tightenedLineHeight).isLessThan(defaultLineHeight);
+
+        Method sizeMethod = FillFormService.class.getDeclaredMethod(
+            "getDynamicMultiLineFontSize", String.class, Rectangle.class, PdfFont.class, float.class);
+        sizeMethod.setAccessible(true);
+        float fontSize = (float) sizeMethod.invoke(fillFormService, value, rect, font, tightenedLineHeight);
+
+        // Both explicit lines still render (no text lost), at a legible size - not the 1pt floor.
+        assertThat(fontSize).isGreaterThan(4f);
     }
 
     private File createTempJsonFile(String content) throws IOException {
