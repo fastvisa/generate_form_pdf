@@ -68,6 +68,12 @@ public class FillFormService {
   private static final float MULTILINE_BASE_FONT_SIZE = 10f;
   private static final float MULTILINE_LEADING_FACTOR = 1.4f;
   private static final float MULTILINE_LINE_HEIGHT = MULTILINE_BASE_FONT_SIZE * MULTILINE_LEADING_FACTOR;
+  // Bounds for findMostLegibleLineHeight's search over how many lines a value could wrap onto:
+  // how many candidate line counts to try (performance cap - each candidate re-runs the font-size
+  // binary search), and the smallest leading worth trying (below this, text is cramped regardless
+  // of font size, so there's nothing left to gain from tightening further).
+  private static final int MAX_LINES_TO_TRY_FOR_LEGIBILITY = 12;
+  private static final float MIN_LEGIBLE_LINE_HEIGHT = 6f;
 
   public FillFormService() {
     this.pdfUtilityService = new PdfUtilityService();
@@ -117,15 +123,19 @@ public class FillFormService {
           List<float[]> candidates = ruledLineCandidatesByPage.computeIfAbsent(page, this::findThinWideShapes);
           Float detectedSpacing = detectRuledLineSpacing(candidates, fieldsRectInput);
           if (detectedSpacing != null) {
+            // Real printed ruled lines on the page - the leading must match them exactly so text
+            // sits on the lines, not whatever would maximize font size.
             multilineLineHeight = detectedSpacing;
+            multilineLineHeight = tightenLineHeightForForcedLines(value, fieldsRectInput.getHeight() - 8f, multilineLineHeight);
+          } else {
+            // No printed ruled lines to align to, so the leading is free to shrink in exchange for
+            // letting long text wrap onto more lines - e.g. a one-line-tall-at-14pt table cell with
+            // a long value (a long employer name, a full street address) would otherwise be forced
+            // onto a single line and shrink to a near-illegible font, the same way
+            // tightenLineHeightForForcedLines prevents for explicit line breaks, just triggered by
+            // the text being too long for its width instead of containing "\n".
+            multilineLineHeight = findMostLegibleLineHeight(value, fieldsRectInput, font, multilineLineHeight);
           }
-          // A value with more explicit line breaks than the field can hold at this lineHeight
-          // would make the fit-check permanently impossible regardless of font size (lineHeight
-          // isn't tied to font size) and collapse the font to the 1pt floor. Tighten the leading
-          // to whatever the forced line count needs instead, so those lines still render at a
-          // legible size - e.g. the browser's own textarea preview for this same field shows the
-          // forced line break as two normal-sized lines, not one shrunk line.
-          multilineLineHeight = tightenLineHeightForForcedLines(value, fieldsRectInput.getHeight() - 8f, multilineLineHeight);
         }
 
         float inputDynamicFontSize = getDynamicFontSize(value, fieldsRectInput, font);
@@ -420,26 +430,66 @@ public class FillFormService {
     return Math.max(fontSize, 1f);
   }
 
-  // lineHeight is fixed (either the default or a detected ruled-line spacing), not tied to font
-  // size, so a value whose explicit line breaks alone need more lines than the field can hold at
-  // that lineHeight makes the fit-check in doesTextFitWithNewlines impossible at any font size -
-  // it always falls back to the 1pt floor. When that happens, tighten the leading to exactly what
-  // the forced line count needs so those lines can still render at a legible size, instead of
-  // discarding the line breaks or collapsing the font.
+  // lineHeight is fixed (either the default MULTILINE_LINE_HEIGHT or a detected ruled-line
+  // spacing), not tied to font size, so whenever the field's forced line count - explicit line
+  // breaks in the value, or just 1 for a plain value - needs more height than the field actually
+  // has at that lineHeight, the fit-check in doesTextFitWithNewlines is impossible at any font
+  // size and always falls back to the 1pt floor. This also hits short, single-line table cells
+  // (e.g. an 18pt-tall cell, usableHeight 10pt, is shorter than the 14pt default leading even for
+  // 1 line) with no line breaks at all. Tighten the leading to exactly what the field's own line
+  // count needs instead, so it still renders at a legible size.
   private float tightenLineHeightForForcedLines(String value, float usableHeight, float lineHeight) {
-    if (value == null || (value.indexOf('\n') < 0 && value.indexOf('\r') < 0)) {
+    int forcedLines = 1;
+    if (value != null && (value.indexOf('\n') >= 0 || value.indexOf('\r') >= 0)) {
+      String normalized = value.replace("\r\n", "\n").replace('\r', '\n');
+      forcedLines = normalized.split("\n", -1).length;
+    }
+    if (forcedLines * lineHeight <= usableHeight) {
       return lineHeight;
     }
-    String normalized = value.replace("\r\n", "\n").replace('\r', '\n');
-    int forcedLines = normalized.split("\n", -1).length;
-    if (forcedLines <= 1 || forcedLines * lineHeight <= usableHeight) {
-      return lineHeight;
+    return Math.max(usableHeight / forcedLines, 1f);
+  }
+
+  // When a field has no printed ruled lines to align to, the leading isn't pinned to anything -
+  // so if the value is just too long to fit its width on a single line at the default leading,
+  // shrinking the font to force it onto one line (what getDynamicMultiLineFontSize does on its
+  // own) is one option, but letting it wrap onto another line at a slightly tighter leading often
+  // reads far better, the same way a browser textarea wraps instead of shrinking. This tries a
+  // handful of leadings - the one forced-line-break tightening already settled on, plus a few
+  // smaller candidates that allow progressively more wrapped lines - and keeps whichever produces
+  // the most legible (largest) resulting font size. Trying a candidate that turns out worse is
+  // harmless: its font size just loses the comparison and gets discarded.
+  private float findMostLegibleLineHeight(String value, Rectangle fieldsRect, PdfFont font, float defaultLineHeight) {
+    float usableHeight = fieldsRect.getHeight() - 8f;
+
+    float bestLineHeight = tightenLineHeightForForcedLines(value, usableHeight, defaultLineHeight);
+    float bestFontSize = getDynamicMultiLineFontSize(value, fieldsRect, font, bestLineHeight);
+
+    for (int lines = 2; lines <= MAX_LINES_TO_TRY_FOR_LEGIBILITY; lines++) {
+      float candidateLineHeight = usableHeight / lines;
+      if (candidateLineHeight < MIN_LEGIBLE_LINE_HEIGHT) {
+        break; // only gets tighter as lines grows further - nothing left worth trying
+      }
+      if (candidateLineHeight > defaultLineHeight) {
+        continue; // never use more leading than the form's normal default
+      }
+      float candidateFontSize = getDynamicMultiLineFontSize(value, fieldsRect, font, candidateLineHeight);
+      if (candidateFontSize > bestFontSize) {
+        bestFontSize = candidateFontSize;
+        bestLineHeight = candidateLineHeight;
+      }
     }
-    return usableHeight / forcedLines;
+    return bestLineHeight;
   }
 
   private float getDynamicMultiLineFontSize(String value, Rectangle fieldsRect, PdfFont font, float lineHeight) {
-    float maxFontSize = MULTILINE_BASE_FONT_SIZE;
+    // The binary search below only checks that lineCount * lineHeight fits the box - it never
+    // compares the font size itself against lineHeight. A font taller than its own leading means
+    // consecutive lines overlap (or one draws over the other) even though the "fits" check passed.
+    // That's harmless at the default/detected leading (always >= MULTILINE_BASE_FONT_SIZE), but
+    // once tightenLineHeightForForcedLines shrinks the leading below that default, the ceiling has
+    // to shrink with it so lines stay legible instead of colliding.
+    float maxFontSize = Math.max(1f, Math.min(MULTILINE_BASE_FONT_SIZE, lineHeight));
     float minFontSize = 1f;
     float usableWidth = fieldsRect.getWidth() - 8f;
     float usableHeight = fieldsRect.getHeight() - 8f;
@@ -478,12 +528,15 @@ public class FillFormService {
         lineCount++;
         continue;
       }
-      String[] words = line.split("\\s+");
+      // Split on a literal single space (not "\\s+") and keep empty tokens: consecutive spaces
+      // in the value are rendered as literal characters that each take up real width, so
+      // collapsing a run of spaces into one delimiter (as "\\s+" does) previously made this
+      // under-measure the line and could let text through that then overflows at render time.
+      String[] words = line.replace('\t', ' ').split(" ", -1);
       float currentLineWidth = 0f;
       boolean firstWord = true;
 
       for (String word : words) {
-        if (word.isEmpty()) continue;
         float wordWidth = font.getWidth(word, 1f) * fontSize;
         float spaceWidth = spaceWidthAt1Pt * fontSize;
 
