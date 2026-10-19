@@ -11,7 +11,10 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.hasKey;
+import org.springframework.http.MediaType;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -77,5 +80,31 @@ class FormsControllerTest {
         mockMvc.perform(get("/health"))
             .andExpect(status().isOk());
     }
-}
 
+    private static final String QUESTIONNAIRE_PAYLOAD = "{"
+        + "\"receipt_type\":\"Questionnaire\","
+        + "\"output_name\":\"Questionnaire-42-1791358200\","
+        + "\"form_data\":{"
+        + "\"case\":{\"number\":\"238547\",\"name\":\"H-1B Extension 2026\"},"
+        + "\"client\":\"Zhang Ling He\",\"questionnaire\":\"H-1B Extension Questionnaire\","
+        + "\"submitted_at\":\"Jun 28, 2026\",\"verified_at\":\"Oct 7, 2026 at 2:30 PM WIB\","
+        + "\"verified_by\":\"Yusen Lee\",\"totals\":{\"provided\":1,\"total\":2},"
+        + "\"blocks\":[{\"section_index\":1,\"section_total\":1,\"title\":\"Additional information\","
+        + "\"continued\":false,\"description\":null,\"provided\":1,\"total\":2,\"fields\":["
+        + "{\"label\":\"Arrested?\",\"display_value\":\"No\",\"provided\":true},"
+        + "{\"label\":\"Notes\",\"display_value\":null,\"provided\":false}]}],"
+        + "\"missing_optional\":[\"Notes\"]}}";
+
+    @Test
+    @DisplayName("Should generate a Questionnaire PDF and return a download url")
+    void shouldGenerateQuestionnaireReceipt() throws Exception {
+        mockMvc.perform(post("/api/v1/generate-receipt")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(QUESTIONNAIRE_PAYLOAD))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("success"))
+            .andExpect(jsonPath("$.receipt_type").value("Questionnaire"))
+            .andExpect(jsonPath("$.output_name").value("Questionnaire-42-1791358200"))
+            .andExpect(jsonPath("$.url_download").isNotEmpty());
+    }
+}
