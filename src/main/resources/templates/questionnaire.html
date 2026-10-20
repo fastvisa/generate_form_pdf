@@ -125,11 +125,11 @@
       <tr>
         <td>
           <p class="label">Case number</p>
-          <p class="value" th:text="'#' + ${view.caseNumber}">#1</p>
+          <p class="value" th:text="${view.caseNumberDisplay()}">#1</p>
         </td>
         <td>
           <p class="label">Case name</p>
-          <p class="value" th:text="${view.client} + ' - ' + ${view.caseName}">Client - Case</p>
+          <p class="value" th:text="${view.caseNameDisplay()}">Client - Case</p>
         </td>
       </tr>
       <tr>

@@ -81,8 +81,8 @@ class QuestionnaireReceiptTest {
     data.put("case", caseInfo);
     data.put("client", "Zhang Ling He");
     data.put("questionnaire", "H-1B Extension Questionnaire");
-    data.put("submitted_at", "Jun 28, 2026");
-    data.put("verified_at", "Oct 7, 2026 at 2:30 PM WIB");
+    data.put("submitted_at", "06/28/2026");
+    data.put("verified_at", "10/07/2026 at 2:30 PM EDT");
     data.put("verified_by", "Yusen Lee");
     data.put("totals", totals);
     data.put("blocks", blocks);
@@ -157,6 +157,9 @@ class QuestionnaireReceiptTest {
     assertThat(cover).contains("11 OF 12 RESPONSES PROVIDED");
     assertThat(cover).contains("#238547");
     assertThat(cover).contains("Yusen Lee");
+    // dates and zone are printed exactly as Rails sends them
+    assertThat(cover).contains("06/28/2026");
+    assertThat(cover).contains("10/07/2026 at 2:30 PM EDT");
     assertThat(flat(cover)).contains("One response was not provided and is identified in the final section.");
     assertThat(cover).doesNotContain("Personal information");
 
@@ -214,6 +217,24 @@ class QuestionnaireReceiptTest {
     }
     assertThat(pages.get(0)).doesNotContain("VERIFIED QUESTIONNAIRE");
     assertThat(pages.get(1)).contains("VERIFIED QUESTIONNAIRE");
+  }
+
+  @Test
+  @DisplayName("Questionnaire without a case renders without a dangling Case #")
+  void rendersWithoutCase() throws IOException {
+    Map<String, Object> data = payload(11, 12, Collections.emptyList(), threeBlocks(fields("Field", 9)));
+    @SuppressWarnings("unchecked")
+    Map<String, Object> caseInfo = (Map<String, Object>) data.get("case");
+    caseInfo.put("number", "");
+    caseInfo.put("name", "");
+
+    List<String> pages = render(data);
+
+    for (String page : pages) {
+      assertThat(page).doesNotContain("Case #");
+      assertThat(page).contains("Zhang Ling He");
+    }
+    assertThat(pages.get(0)).doesNotContain("CASE NUMBER\n#");
   }
 
   @Test

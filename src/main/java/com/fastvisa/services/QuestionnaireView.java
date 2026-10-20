@@ -110,7 +110,8 @@ public class QuestionnaireView {
 
 
   public String footerLeft() {
-    String text = getClient() + " | Case #" + getCaseNumber();
+    // case.number is an empty string when the questionnaire is not attached to a case
+    String text = getCaseNumber().isEmpty() ? getClient() : getClient() + " | Case #" + getCaseNumber();
     return text
         .replace("\\", "\\\\")
         .replace("\"", "\\\"")
@@ -136,6 +137,14 @@ public class QuestionnaireView {
 
   public String getCaseNumber() {
     return str(caseInfo.get("number"));
+  }
+
+  public String caseNumberDisplay() {
+    return getCaseNumber().isEmpty() ? "-" : "#" + getCaseNumber();
+  }
+
+  public String caseNameDisplay() {
+    return getCaseName().isEmpty() ? "-" : getClient() + " - " + getCaseName();
   }
 
   public String getCaseName() {

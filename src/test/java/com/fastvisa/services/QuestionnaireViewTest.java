@@ -200,6 +200,39 @@ class QuestionnaireViewTest {
     assertThat(view.lines(null)).isEmpty();
   }
 
+  @Test
+  @DisplayName("Blank case number: footer omits the Case # part, cover shows a dash")
+  @SuppressWarnings("unchecked")
+  void blankCaseNumber() {
+    Map<String, Object> data = payload(28, 28, Collections.emptyList());
+    ((Map<String, Object>) data.get("case")).put("number", "");
+    ((Map<String, Object>) data.get("case")).put("name", "");
+
+    QuestionnaireView view = new QuestionnaireView(data);
+
+    assertThat(view.footerLeft()).isEqualTo("Zhang Ling He");
+    assertThat(view.caseNumberDisplay()).isEqualTo("-");
+    assertThat(view.caseNameDisplay()).isEqualTo("-");
+  }
+
+  @Test
+  @DisplayName("Case number and name display values with a case")
+  void caseDisplayValues() {
+    QuestionnaireView view = new QuestionnaireView(payload(28, 28, Collections.emptyList()));
+
+    assertThat(view.caseNumberDisplay()).isEqualTo("#238547");
+    assertThat(view.caseNameDisplay()).isEqualTo("Zhang Ling He - H-1B Extension 2026");
+  }
+
+  @Test
+  @DisplayName("Missing case object is treated like a blank case")
+  void missingCaseObject() {
+    Map<String, Object> data = payload(28, 28, Collections.emptyList());
+    data.remove("case");
+
+    assertThat(new QuestionnaireView(data).footerLeft()).isEqualTo("Zhang Ling He");
+  }
+
   // ---- edge inputs --------------------------------------------------------
 
   @Test
