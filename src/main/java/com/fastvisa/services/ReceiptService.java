@@ -22,6 +22,8 @@ import org.thymeleaf.templateresolver.ITemplateResolver;
 import org.thymeleaf.context.Context;
 
 import com.fastvisa.manipulatepdf.Receipt;
+import com.fastvisa.services.questionnaire.QuestionnaireTagWorkerFactory;
+import com.fastvisa.services.questionnaire.QuestionnaireView;
 
 @Service
 public class ReceiptService {
@@ -59,19 +61,35 @@ public class ReceiptService {
         break;
 
       case "Questionnaire":
-        context.setVariable("view", new QuestionnaireView(receipt.getForm_data()));
+        QuestionnaireView view = new QuestionnaireView(receipt.getForm_data());
+        context.setVariable("view", view);
         context.setVariable("logoDataUri", logoDataUri());
-        html = templateEngine.process("questionnaire", context);
 
         ConverterProperties questionnaireProperties = new ConverterProperties();
         questionnaireProperties.setFontProvider(questionnaireFontProvider());
+        questionnaireProperties.setTagWorkerFactory(new QuestionnaireTagWorkerFactory());
 
-        HtmlConverter.convertToPdf(html, file, questionnaireProperties);
+        // Render to memory first: if the sanitized content html cannot be rendered, retry with the plain
+        // text of every content field instead of leaving a half-written file behind.
+        byte[] pdf;
+        try {
+          pdf = convertToPdfBytes(templateEngine.process("questionnaire", context), questionnaireProperties);
+        } catch (RuntimeException e) {
+          view.disableHtml();
+          pdf = convertToPdfBytes(templateEngine.process("questionnaire", context), questionnaireProperties);
+        }
+        file.write(pdf);
         break;
 
       default:
         break;
     }
+  }
+
+  private static byte[] convertToPdfBytes(String html, ConverterProperties properties) throws IOException {
+    ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+    HtmlConverter.convertToPdf(html, buffer, properties);
+    return buffer.toByteArray();
   }
 
   private static final String[] UNICODE_FONT_FILES = {

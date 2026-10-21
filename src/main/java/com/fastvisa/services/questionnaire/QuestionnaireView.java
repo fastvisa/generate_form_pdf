@@ -1,4 +1,4 @@
-package com.fastvisa.services;
+package com.fastvisa.services.questionnaire;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -16,6 +16,7 @@ public class QuestionnaireView {
   private final List<String> missingOptional;
   private final int provided;
   private final int total;
+  private boolean htmlEnabled = true;
 
   @SuppressWarnings("unchecked")
   public QuestionnaireView(Object formData) {
@@ -121,6 +122,45 @@ public class QuestionnaireView {
         .replace("<", "\\3C ");
   }
 
+  // ---- sections and fields (template helpers) -----------------------------
+
+  /** First-page eyebrow of a section. The "N OF M ANSWERED" part is left out when the section has no questions. */
+  public String sectionEyebrow(Map<String, Object> block) {
+    String base = "SECTION " + intOf(block.get("section_index")) + " OF " + intOf(block.get("section_total"));
+    int blockTotal = intOf(block.get("total"));
+    return blockTotal > 0
+        ? base + " / " + intOf(block.get("provided")) + " OF " + blockTotal + " ANSWERED"
+        : base;
+  }
+
+  /** Eyebrow repeated on the pages a section continues onto. */
+  public String continuedEyebrow(Map<String, Object> block) {
+    return "SECTION " + intOf(block.get("section_index")) + " OF " + intOf(block.get("section_total")) + " / CONTINUED";
+  }
+
+  /** Informational text (e.g. a consent notice) rather than a question. Fields without a kind are answers. */
+  public boolean isContent(Map<String, Object> field) {
+    return field != null && "content".equals(field.get("kind"));
+  }
+
+  /** True when the sanitized html body of a content field should be rendered (vs. its plain text). */
+  public boolean useHtml(Map<String, Object> field) {
+    if (!htmlEnabled || field == null) {
+      return false;
+    }
+    Object html = field.get("html");
+    return html != null && !String.valueOf(html).trim().isEmpty();
+  }
+
+  /** Used when rendering the html bodies failed: every content field falls back to its plain text. */
+  public void disableHtml() {
+    this.htmlEnabled = false;
+  }
+
+  private static int intOf(Object value) {
+    return value instanceof Number ? ((Number) value).intValue() : 0;
+  }
+
   /** Splits a display value into lines so the template can emit explicit line breaks. */
   public List<String> lines(Object value) {
     if (value == null) {
@@ -162,6 +202,12 @@ public class QuestionnaireView {
   public String getSubmittedAt() {
     String value = str(data.get("submitted_at"));
     return value.isEmpty() ? "-" : value;
+  }
+
+  /** Null unless the client resubmitted the questionnaire before it was verified. */
+  public String getResubmittedAt() {
+    String value = str(data.get("resubmitted_at"));
+    return value.isEmpty() ? null : value;
   }
 
   public String getVerifiedAt() {

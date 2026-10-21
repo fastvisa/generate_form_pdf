@@ -1,4 +1,4 @@
-package com.fastvisa.services;
+package com.fastvisa.services.questionnaire;
 
 import com.fastvisa.manipulatepdf.Receipt;
 import com.google.gson.Gson;
@@ -231,6 +231,70 @@ class QuestionnaireViewTest {
     data.remove("case");
 
     assertThat(new QuestionnaireView(data).footerLeft()).isEqualTo("Zhang Ling He");
+  }
+
+  @Test
+  @DisplayName("Section eyebrows: answered counts, none when total is 0, continued variant")
+  void sectionEyebrows() {
+    QuestionnaireView view = new QuestionnaireView(payload(28, 28, Collections.emptyList()));
+    Map<String, Object> block = new HashMap<>();
+    block.put("section_index", 2.0);
+    block.put("section_total", 4.0);
+    block.put("provided", 5.0);
+    block.put("total", 5.0);
+
+    assertThat(view.sectionEyebrow(block)).isEqualTo("SECTION 2 OF 4 / 5 OF 5 ANSWERED");
+    assertThat(view.continuedEyebrow(block)).isEqualTo("SECTION 2 OF 4 / CONTINUED");
+
+    block.put("provided", 0.0);
+    block.put("total", 0.0);
+    assertThat(view.sectionEyebrow(block)).isEqualTo("SECTION 2 OF 4");
+  }
+
+  @Test
+  @DisplayName("Content fields are recognised by kind; fields without kind are answers")
+  void contentKind() {
+    QuestionnaireView view = new QuestionnaireView(payload(28, 28, Collections.emptyList()));
+    Map<String, Object> content = new HashMap<>();
+    content.put("kind", "content");
+    Map<String, Object> answer = new HashMap<>();
+    answer.put("kind", "answer");
+
+    assertThat(view.isContent(content)).isTrue();
+    assertThat(view.isContent(answer)).isFalse();
+    assertThat(view.isContent(new HashMap<>())).isFalse();
+    assertThat(view.isContent(null)).isFalse();
+  }
+
+  @Test
+  @DisplayName("html is used for content unless it is switched off (fallback to text)")
+  void htmlToggle() {
+    QuestionnaireView view = new QuestionnaireView(payload(28, 28, Collections.emptyList()));
+    Map<String, Object> content = new HashMap<>();
+    content.put("kind", "content");
+    content.put("html", "<p>x</p>");
+    Map<String, Object> noHtml = new HashMap<>();
+    noHtml.put("kind", "content");
+    noHtml.put("html", " ");
+
+    assertThat(view.useHtml(content)).isTrue();
+    assertThat(view.useHtml(noHtml)).isFalse();
+
+    view.disableHtml();
+    assertThat(view.useHtml(content)).isFalse();
+  }
+
+  @Test
+  @DisplayName("resubmitted_at is null unless present")
+  void resubmittedAt() {
+    Map<String, Object> data = payload(28, 28, Collections.emptyList());
+    assertThat(new QuestionnaireView(data).getResubmittedAt()).isNull();
+
+    data.put("resubmitted_at", "06/29/2026");
+    assertThat(new QuestionnaireView(data).getResubmittedAt()).isEqualTo("06/29/2026");
+
+    data.put("resubmitted_at", "");
+    assertThat(new QuestionnaireView(data).getResubmittedAt()).isNull();
   }
 
   // ---- edge inputs --------------------------------------------------------
