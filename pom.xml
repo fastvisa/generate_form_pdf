@@ -183,6 +183,19 @@
       <resource>
 				<directory>src/main/resources</directory>
 				<filtering>true</filtering>
+				<excludes>
+					<exclude>fonts/**</exclude>
+					<exclude>**/*.png</exclude>
+				</excludes>
+			</resource>
+			<!-- Binary resources must be copied as-is: filtering corrupts them (fonts, logo) -->
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>false</filtering>
+				<includes>
+					<include>fonts/**</include>
+					<include>**/*.png</include>
+				</includes>
 			</resource>
     </resources>
 		<testResources>

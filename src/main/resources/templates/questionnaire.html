@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>Verified Questionnaire</title>
+  <style type="text/css">
+    @page {
+      size: 8.5in 11in;
+      margin: 64pt 56pt 56pt 56pt;
+      @top-left {
+        content: "FastVisa   /  VERIFIED QUESTIONNAIRE";
+        font-family: Helvetica, "Noto Sans", "Noto Sans SC", sans-serif;
+        font-size: 7.5pt;
+        font-weight: bold;
+        color: #123C55;
+        border-bottom: 0.5pt solid #D9E3E9;
+        vertical-align: bottom;
+        padding-bottom: 6pt;
+        width: 100%;
+      }
+      @bottom-left {
+        font-family: Helvetica, "Noto Sans", "Noto Sans SC", sans-serif;
+        font-size: 7.5pt;
+        color: #5E6C78;
+        border-top: 0.5pt solid #D9E3E9;
+        vertical-align: top;
+        padding-top: 6pt;
+      }
+      @bottom-right {
+        content: "Page " counter(page);
+        font-family: Helvetica, "Noto Sans", "Noto Sans SC", sans-serif;
+        font-size: 7.5pt;
+        color: #5E6C78;
+        border-top: 0.5pt solid #D9E3E9;
+        vertical-align: top;
+        text-align: right;
+        padding-top: 6pt;
+      }
+    }
+
+    @page :first {
+      @top-left { content: ""; border-bottom: none; background-image: none; padding-left: 0; }
+    }
+
+    body {
+      font-family: Helvetica, "Noto Sans", "Noto Sans SC", sans-serif;
+      font-size: 9.3pt;
+      color: #17212B;
+      margin: 0;
+    }
+
+    /* Browser preview only: @page margins are ignored there. html2pdf renders with print media, so the PDF is unaffected. */
+    @media screen {
+      body { max-width: 6.5in; margin: 0 auto; padding: 56pt; }
+    }
+
+    /* ---- cover ---- */
+    .cover { page-break-after: always; }
+    .logo { width: 96pt; margin: 8pt 0 14pt 0; }
+    .wordmark { font-size: 34pt; font-weight: bold; color: #123C55; margin: 8pt 0 14pt 0; }
+    .wordmark .visa { color: #B22222; }
+    .cover-title { font-size: 24pt; font-weight: bold; color: #123C55; margin: 0 0 12pt 0; }
+    .cover-subtitle { font-size: 10.5pt; color: #5E6C78; margin: 0 0 26pt 0; }
+
+    table.band { width: 100%; border-collapse: collapse; margin-bottom: 22pt; }
+    table.band td {
+      width: 50%; text-align: center; padding: 14pt 8pt;
+      font-size: 8.5pt; font-weight: bold; color: #0B6A99;
+      border: 0.75pt solid #D9E3E9;
+    }
+    table.band td.verified { background-color: #EEF7FB; }
+    table.band td.provided { background-color: #FFF8E7; }
+
+    table.meta { width: 100%; border-collapse: collapse; margin-bottom: 6pt; }
+    table.meta td { width: 50%; padding: 9pt 18pt; border: 0.75pt solid #D9E3E9; vertical-align: top; }
+
+    .label { font-size: 7.4pt; font-weight: bold; color: #5E6C78; text-transform: uppercase; margin: 0 0 5pt 0; }
+    .value { font-size: 9.3pt; color: #17212B; margin: 0; }
+    .not-provided { color: #8A5A00; font-style: italic; }
+
+    .notice {
+      background-color: #EEF7FB; border: 0.75pt solid #D9E3E9;
+      padding: 10pt 18pt; margin: 6pt 0 14pt 0; page-break-inside: avoid;
+    }
+    .notice p { margin: 0; line-height: 1.35; }
+    .notice .label { margin-bottom: 8pt; }
+    .disclaimer { font-size: 8pt; color: #5E6C78; line-height: 1.35; margin: 0; }
+
+    /* ---- sections ----
+       One table per section; rows flow across pages by themselves. The <thead> (eyebrow + "Title (continued)")
+       is repeated on continuation pages only (QuestionnaireTagWorkerFactory skips it on the first page).
+       The section heading lives in the first row, so it always stays with the first field.
+       padding-top (not margin) so the gap under the running-header rule survives at the top of a page. */
+    table.section-table { width: 100%; border-collapse: collapse; }
+    table.section-table td { padding: 0; vertical-align: top; }
+    .sec-head, .cont-head { padding-top: 22pt; }
+    .eyebrow { font-size: 8.5pt; font-weight: bold; color: #0B6A99; text-transform: uppercase; margin: 0 0 8pt 0; }
+    .section-title { font-size: 18pt; font-weight: bold; color: #123C55; margin: 0 0 6pt 0; }
+    .section-desc { font-size: 9.5pt; color: #5E6C78; margin: 0 0 14pt 0; }
+    .cont-head .section-title { margin-bottom: 14pt; }
+
+    .box { border: 0.75pt solid #D9E3E9; border-top: none; padding: 9pt 18pt; }
+    .box.first-box { border-top: 0.75pt solid #D9E3E9; }
+    /* short answers stay whole; content rows must stay free to split (a consent notice can be pages long) */
+    td.is-answer { page-break-inside: avoid; }
+
+    .content-body { font-size: 9.3pt; color: #17212B; line-height: 1.35; }
+    .content-body p, .content-body div, .content-body ul, .content-body ol, .content-body blockquote { margin: 0 0 6pt 0; }
+    .content-body ul, .content-body ol { padding-left: 16pt; }
+    .content-body blockquote { padding-left: 10pt; border-left: 1.5pt solid #D9E3E9; color: #5E6C78; }
+    .content-body h1, .content-body h2, .content-body h3, .content-body h4, .content-body h5, .content-body h6 {
+      font-size: 10pt; font-weight: bold; color: #123C55; margin: 8pt 0 4pt 0;
+    }
+    .content-body a { color: #0B6A99; text-decoration: underline; }
+    .content-body hr { border: none; border-top: 0.75pt solid #D9E3E9; margin: 8pt 0; }
+
+    .closing { page-break-inside: avoid; }
+    .cert-eyebrow { font-size: 8.5pt; font-weight: bold; color: #0B6A99; margin: 24pt 0 6pt 0; }
+    .cert-text { font-size: 9pt; color: #5E6C78; line-height: 1.35; margin: 0; }
+  </style>
+  <!-- Footer-left text is built and escaped in Java (QuestionnaireView.footerLeft); the logo is a server-built data URI. These are the only th:utext. -->
+  <style type="text/css" th:utext="'@page { @bottom-left { content: &quot;' + ${view.footerLeft()} + '&quot;; } }' + (${logoDataUri} != null ? ' @page { @top-left { content: &quot;/  VERIFIED QUESTIONNAIRE&quot;; background-image: url(' + ${logoDataUri} + '); background-repeat: no-repeat; background-size: 46pt auto; background-position: 0 42pt; padding-left: 54pt; } }' : '')"></style>
+</head>
+<body>
+
+  <!-- cover -->
+  <div class="cover">
+    <img class="logo" th:if="${logoDataUri != null}" th:src="${logoDataUri}" alt="FastVisa"/>
+    <div class="wordmark" th:unless="${logoDataUri != null}">Fast<span class="visa">Visa</span></div>
+    <h1 class="cover-title" th:text="${view.verifiedTitle()}">Verified Questionnaire</h1>
+    <p class="cover-subtitle">A locked record of the questionnaire responses reviewed and verified for this case.</p>
+
+    <table class="band">
+      <tr>
+        <td class="verified">VERIFIED</td>
+        <td class="provided" th:text="${view.statusRight()}">27 OF 28 RESPONSES PROVIDED</td>
+      </tr>
+    </table>
+
+    <table class="meta">
+      <tr>
+        <td>
+          <p class="label">Case number</p>
+          <p class="value" th:text="${view.caseNumberDisplay()}">#1</p>
+        </td>
+        <td>
+          <p class="label">Case name</p>
+          <p class="value" th:text="${view.caseNameDisplay()}">Client - Case</p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p class="label">Client</p>
+          <p class="value" th:text="${view.client}">Client</p>
+        </td>
+        <td>
+          <p class="label">Questionnaire</p>
+          <p class="value" th:text="${view.questionnaire}">Questionnaire</p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p class="label">Submitted</p>
+          <p class="value" th:text="${view.submittedAt}">-</p>
+          <p class="value" th:if="${view.resubmittedAt != null}" th:text="'Resubmitted ' + ${view.resubmittedAt}">Resubmitted</p>
+        </td>
+        <td>
+          <p class="label">Verified</p>
+          <p class="value" th:text="${view.verifiedAt}">-</p>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2">
+          <p class="label">Verified by</p>
+          <p class="value" th:text="${view.verifiedBy}">-</p>
+        </td>
+      </tr>
+    </table>
+
+    <div class="notice">
+      <p class="label">Record notice</p>
+      <p th:text="${view.recordNotice()}">Notice</p>
+    </div>
+
+    <p class="disclaimer">This document is intended for the case record. It reflects the reviewed questionnaire responses only and does not replace any government form or legal filing.</p>
+  </div>
+
+  <!-- sections: one table per section, rows flow across pages -->
+  <table class="section-table" th:each="block : ${view.blocks}">
+    <thead>
+      <tr><td>
+        <div class="cont-head">
+          <p class="eyebrow" th:text="${view.continuedEyebrow(block)}">SECTION 1 OF 4 / CONTINUED</p>
+          <h2 class="section-title" th:text="${block['title']} + ' (continued)'">Title (continued)</h2>
+        </div>
+      </td></tr>
+    </thead>
+    <tbody>
+      <tr th:each="field, stat : ${block['fields']}">
+        <td th:classappend="${view.isContent(field)} ? 'is-content' : 'is-answer'">
+          <div class="sec-head" th:if="${stat.first}">
+            <p class="eyebrow" th:text="${view.sectionEyebrow(block)}">SECTION 1 OF 4 / 1 OF 1 ANSWERED</p>
+            <h2 class="section-title" th:text="${block['title']}">Title</h2>
+            <p class="section-desc" th:if="${block['description'] != null}" th:text="${block['description']}">Description</p>
+          </div>
+
+          <!-- informational text (e.g. consent): heading + body, never "Not provided" -->
+          <div class="box" th:classappend="${stat.first} ? 'first-box'" th:if="${view.isContent(field)}">
+            <p class="label" th:text="${field['label']}">Heading</p>
+            <!-- th:utext only for the Rails-sanitized html of content fields; label and text stay escaped -->
+            <div class="content-body" th:if="${view.useHtml(field)}" th:utext="${field['html']}">html</div>
+            <div class="content-body" th:unless="${view.useHtml(field)}">
+              <th:block th:each="line, lineStat : ${view.lines(field['text'])}"><span th:text="${line}">line</span><br th:unless="${lineStat.last}"/></th:block>
+            </div>
+          </div>
+
+          <div class="box" th:classappend="${stat.first} ? 'first-box'" th:unless="${view.isContent(field)}">
+            <p class="label" th:text="${field['label']}">Label</p>
+            <p class="value not-provided" th:if="${field['display_value'] == null or field['provided'] == false}">Not provided</p>
+            <p class="value" th:unless="${field['display_value'] == null or field['provided'] == false}">
+              <th:block th:each="line, lineStat : ${view.lines(field['display_value'])}"><span th:text="${line}">line</span><br th:unless="${lineStat.last}"/></th:block>
+            </p>
+          </div>
+        </td>
+      </tr>
+      <!-- a section without fields still shows its heading -->
+      <tr th:if="${#lists.isEmpty(block['fields'])}">
+        <td>
+          <div class="sec-head">
+            <p class="eyebrow" th:text="${view.sectionEyebrow(block)}">SECTION 1 OF 4</p>
+            <h2 class="section-title" th:text="${block['title']}">Title</h2>
+            <p class="section-desc" th:if="${block['description'] != null}" th:text="${block['description']}">Description</p>
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- closing -->
+  <div class="closing">
+    <p class="cert-eyebrow">VERIFICATION CERTIFICATION</p>
+    <p class="cert-text">This document is an immutable snapshot of the questionnaire responses at the time of verification. Any later edit or correction requires the questionnaire to be reviewed and verified again, which produces a new record.</p>
+  </div>
+
+</body>
+</html>
